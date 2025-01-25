@@ -34,15 +34,17 @@ async function handleSolveClick(index, board) {
     }
 
     await wait(1);
-
-    handleButtonClick(index,board);
-    for (let i = index+1; i <= 36; i++) {
-        let done = await handleSolveClick(i, board);
-        if (done) {
-            return true;
-        }
+    let done = await handleSolveClick(index+1, board);
+    if (done) {
+        return true;
     }
     handleButtonClick(index,board);
+    done = await handleSolveClick(index+1, board);
+    if (done) {
+        return true;
+    }
+    handleButtonClick(index,board);
+    
     return false;
 }
 
