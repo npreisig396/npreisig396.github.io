@@ -60,8 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         board.appendChild(button);
     }
-    flip(board.childNodes[20]);
-    flip(board.childNodes[25]);
 
     const solve = document.getElementById("solve");
     solve.addEventListener('click', function () {
