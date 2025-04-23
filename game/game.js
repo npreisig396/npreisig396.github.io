@@ -24,10 +24,10 @@ function isEmpty(board) {
 }
 
 function handleClearClick(board) {
+    playing = false;
     buttons = board.childNodes;
     for (let i = 0; i < dim**2; i++) {
         buttons[i].style.backgroundColor = "white";
-        buttons[i].style.borderColor = "black";
     }
 }
 
@@ -121,14 +121,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const play = document.getElementById("play");
     play.addEventListener('click', function () {
         buttons = board.childNodes;
-        for (let i = 0; i < dim**2; i++) {
-            buttons[i].style.borderColor = "black";
+        if (play.textContent == 'Play') {
+            play.textContent = 'Pause';
+        } else {
+            play.textContent = 'Play';
         }
         handlePlayClick(board);
     });
 
     const clear = document.getElementById("clear");
     clear.addEventListener('click', function () {
+        play.textContent = 'Play';
         handleClearClick(board);
     });
 });
