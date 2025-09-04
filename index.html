@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="/banner.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <div id="banner-container"></div>
+    <nav id='banner-container' class='banner'>
+        <div class='card' data-section='about'>About</div>
+        <div class='card' data-section='education'>Education</div>
+        <div class='card' data-section='experience'>Experience</div>
+        <div class='card' data-section='projects'>Projects</div>
+    </nav>
 
     <div id="about" class="section">About</div>
     <div id="education" class="section">Education</div>
@@ -12,10 +17,6 @@
     <div id="projects" class="section">Projects</div>
 
     <script>
-    fetch('/banner.html').then(banner => banner.text()).then(html => {
-        document.getElementById('banner-container').innerHTML = html;
-
-
         const cards = document.querySelectorAll('.card');
         cards.forEach(card => {
             card.addEventListener('click', () => {
@@ -25,7 +26,6 @@
                 card.classList.add('active');
             });
         });
-    });
     </script>
 
     <style>
