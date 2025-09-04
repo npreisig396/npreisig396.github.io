@@ -1,36 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="/style.css">
+    <link rel='stylesheet' href='/style.css'>
+    <link rel='stylesheet' href='projects/projects.css'> 
 </head>
 <body>
     <nav id='banner-container' class='banner'>
-        <div class='card' data-section='about'>About</div>
+        <div class='card active' data-section='about'>About</div>
         <div class='card' data-section='education'>Education</div>
         <div class='card' data-section='experience'>Experience</div>
         <div class='card' data-section='projects'>Projects</div>
     </nav>
 
-    <div id="about" class="section">About</div>
-    <div id="education" class="section">Education</div>
-    <div id="experience" class="section">Experience</div>
-    <div id="projects" class="section">Projects</div>
+    <div id='about-container' class='section active'></div>
+    <div id='education-container' class='section'></div>
+    <div id='experience-container' class='section'></div>
+    <div id='projects-container' class='section'></div>
 
     <script>
         const cards = document.querySelectorAll('.card');
         cards.forEach(card => {
+            fetch(card.getAttribute('data-section') + '/' + card.getAttribute('data-section') + '.html').then(r => r.text()).then(html => {
+                document.getElementById(card.getAttribute('data-section') + '-container').innerHTML = html;
+            });
             card.addEventListener('click', () => {
                 document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
                 cards.forEach(card => card.classList.remove('active'));
-                document.getElementById(card.getAttribute('data-section')).classList.add('active');
+                document.getElementById(card.getAttribute('data-section') + '-container').classList.add('active');
                 card.classList.add('active');
             });
         });
     </script>
-
-    <style>
-        .section { display:  none; }
-        .section.active { display: block; }
-    </style>
+    <script src='projects/projects.js'></script> 
 </body>
 </html>
