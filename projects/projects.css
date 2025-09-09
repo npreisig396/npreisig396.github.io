@@ -20,8 +20,16 @@
     color: #555;
     line-height: 1.4;
 }
-.project-image img {
-    max-width: 200px;
+.project-media img {
+    width: 200px;
     height: auto;
     border-radius: 6px;
+}
+
+.project-media video {
+    width: 200px;
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #000;
 }
