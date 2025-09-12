@@ -6,13 +6,13 @@
 </head>
 <body>
     <nav id='banner-container' class='banner'>
-        <div class='card active' data-section='about'>About</div>
-        <div class='card' data-section='education'>Education</div>
-        <div class='card' data-section='experience'>Experience</div>
-        <div class='card' data-section='projects'>Projects</div>
+        <div id='about-card' class='card' data-section='about'>About</div>
+        <div id='education-card' class='card' data-section='education'>Education</div>
+        <div id='experience-card' class='card' data-section='experience'>Experience</div>
+        <div id='projects-card' class='card' data-section='projects'>Projects</div>
     </nav>
 
-    <div id='about-container' class='section active'></div>
+    <div id='about-container' class='section'></div>
     <div id='education-container' class='section'></div>
     <div id='experience-container' class='section'></div>
     <div id='projects-container' class='section'></div>
@@ -28,8 +28,19 @@
                 cards.forEach(card => card.classList.remove('active'));
                 document.getElementById(card.getAttribute('data-section') + '-container').classList.add('active');
                 card.classList.add('active');
+                window.location.hash = card.getAttribute('data-section');
             });
         });
+
+        let card = document.getElementById(window.location.hash.substring(1) + '-card');
+        let section = document.getElementById(window.location.hash.substring(1) + '-container');
+        if (card) {
+            card.classList.add('active');
+            section.classList.add('active');
+        } else {
+            document.getElementById('about-card').classList.add('active');
+            document.getElementById('about-container').classList.add('active');
+        }
     </script>
     <script src='projects/projects.js'></script> 
 </body>
