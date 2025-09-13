@@ -1,7 +1,7 @@
 export default function() {
     const canvas = document.createElement("canvas");
-    canvas.width = 200;
-    canvas.height = 200;
+    canvas.width = 100;
+    canvas.height = 100;
 
     const pixels = new Uint8Array(canvas.width * canvas.height);
     const next = new Uint8Array(canvas.width * canvas.height);
@@ -9,7 +9,7 @@ export default function() {
     const ctx = canvas.getContext("2d");
     const imageData = ctx.createImageData(canvas.width, canvas.height);
     const data = imageData.data;
-    for (let i = 0; i < 200*200; i++) {
+    for (let i = 0; i < 100*100; i++) {
         pixels[i] = -1;
         data[4*i+3] = 255;
     }
@@ -36,8 +36,8 @@ export default function() {
         let votes = new Uint8Array(8);
         let max = 0
         let maxc = pixels[ij_to_idx(i,j)];
-        for (let k = Math.max(0,i-1); k < Math.min(200,i+2); k++) {
-            for (let l = Math.max(0,j-1); l < Math.min(200,j+2); l++) {
+        for (let k = Math.max(0,i-1); k < Math.min(100,i+2); k++) {
+            for (let l = Math.max(0,j-1); l < Math.min(100,j+2); l++) {
                 votes[pixels[ij_to_idx(k,l)]]++;
                 if (votes[pixels[ij_to_idx(k,l)]] > max) {
                     maxc = pixels[ij_to_idx(k,l)]
@@ -49,8 +49,8 @@ export default function() {
     }
 
     function evolve() {
-        for (let i = 0; i < 200; i++) {
-            for (let j = 0; j < 200; j++) {
+        for (let i = 0; i < 100; i++) {
+            for (let j = 0; j < 100; j++) {
                 next[ij_to_idx(i,j)] = voters(i,j);
 
             }
@@ -69,7 +69,7 @@ export default function() {
 
     function update(force) {
         let changed = false;
-        for (let i = 0; i < 200*200; i++) changed |= updatePixel(i,force);
+        for (let i = 0; i < 100*100; i++) changed |= updatePixel(i,force);
         ctx.putImageData(imageData, 0, 0);
 
         if (!changed || c == 0) reset();
@@ -80,13 +80,13 @@ export default function() {
         c = 50;
         n = Math.floor(Math.random() * 3) + 2;
         shuffle();
-        for (let i = 0; i < 200*200; i++) next[i] = Math.floor(Math.random() * n);
+        for (let i = 0; i < 100*100; i++) next[i] = Math.floor(Math.random() * n);
         update(true);
     }
 
     reset();
 
-    setInterval(evolve,10);
+    setInterval(evolve,100);
 
     return canvas;
 }
