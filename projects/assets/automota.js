@@ -1,15 +1,18 @@
 export default function() {
     const canvas = document.createElement("canvas");
-    canvas.width = 100;
-    canvas.height = 100;
+    const size = 50;
 
-    const pixels = new Uint8Array(canvas.width * canvas.height);
-    const next = new Uint8Array(canvas.width * canvas.height);
+    canvas.width = size;
+    canvas.height = size;
+
+
+    const pixels = new Uint8Array(size*size);
+    const next = new Uint8Array(size*size);
 
     const ctx = canvas.getContext("2d");
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
+    const imageData = ctx.createImageData(size,size);
     const data = imageData.data;
-    for (let i = 0; i < 100*100; i++) {
+    for (let i = 0; i < size*size; i++) {
         pixels[i] = -1;
         data[4*i+3] = 255;
     }
@@ -18,26 +21,27 @@ export default function() {
         [228, 26, 28],[55, 126, 184],[77, 175, 74],[255, 127, 0],
         [152, 78, 163],[166, 86, 40],[247, 129, 191],[255, 255, 51]
     ];
-    let n = 4;
-    let c = 50;
+    const max_frames = 25;
+    let c = max_frames;
+    let n = 2;
 
     function ij_to_idx(i,j) {
         return i*canvas.width+j;
     }
 
     function shuffle() {
-        for (let i = 0; i < 7; i++) {
-            const j = Math.floor((Math.random() * (8-i)) + i);
+        for (let i = 0; i < colors.length-1; i++) {
+            const j = Math.floor((Math.random() * (colors.length-i)) + i);
             [colors[i],colors[j]] = [colors[j],colors[i]];
         }
     }
 
     function voters(i,j) {
-        let votes = new Uint8Array(8);
+        let votes = new Uint8Array(colors.length);
         let max = 0
         let maxc = pixels[ij_to_idx(i,j)];
-        for (let k = Math.max(0,i-1); k < Math.min(100,i+2); k++) {
-            for (let l = Math.max(0,j-1); l < Math.min(100,j+2); l++) {
+        for (let k = Math.max(0,i-1); k < Math.min(size,i+2); k++) {
+            for (let l = Math.max(0,j-1); l < Math.min(size,j+2); l++) {
                 votes[pixels[ij_to_idx(k,l)]]++;
                 if (votes[pixels[ij_to_idx(k,l)]] > max) {
                     maxc = pixels[ij_to_idx(k,l)]
@@ -49,8 +53,8 @@ export default function() {
     }
 
     function evolve() {
-        for (let i = 0; i < 100; i++) {
-            for (let j = 0; j < 100; j++) {
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
                 next[ij_to_idx(i,j)] = voters(i,j);
 
             }
@@ -69,7 +73,7 @@ export default function() {
 
     function update(force) {
         let changed = false;
-        for (let i = 0; i < 100*100; i++) changed |= updatePixel(i,force);
+        for (let i = 0; i < size*size; i++) changed |= updatePixel(i,force);
         ctx.putImageData(imageData, 0, 0);
 
         if (!changed || c == 0) reset();
@@ -77,16 +81,16 @@ export default function() {
     }
 
     function reset() {
-        c = 50;
-        n = Math.floor(Math.random() * 3) + 2;
+        c = max_frames;
+        n = 2 + Math.floor(Math.random()*2);
         shuffle();
-        for (let i = 0; i < 100*100; i++) next[i] = Math.floor(Math.random() * n);
+        for (let i = 0; i < size*size; i++) next[i] = Math.floor(Math.random() * n);
         update(true);
     }
 
     reset();
 
-    setInterval(evolve,100);
+    setInterval(evolve,50);
 
     return canvas;
 }
