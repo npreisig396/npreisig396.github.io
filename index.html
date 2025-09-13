@@ -20,15 +20,20 @@
     <script>
         const cards = document.querySelectorAll('.card');
         cards.forEach(card => {
-            fetch(card.getAttribute('data-section') + '/' + card.getAttribute('data-section') + '.html').then(r => r.text()).then(html => {
-                document.getElementById(card.getAttribute('data-section') + '-container').innerHTML = html;
+            const name = card.getAttribute('data-section');
+            fetch(name + '/' + name + '.html').then(r => r.text()).then(html => {
+                document.getElementById(name + '-container').innerHTML = html;
+                const script = document.createElement('script');
+                script.src = name + '/' + name + '.js';
+                script.type = 'module';
+                document.body.appendChild(script);
             });
             card.addEventListener('click', () => {
                 document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
                 cards.forEach(card => card.classList.remove('active'));
-                document.getElementById(card.getAttribute('data-section') + '-container').classList.add('active');
+                document.getElementById(name + '-container').classList.add('active');
                 card.classList.add('active');
-                window.location.hash = card.getAttribute('data-section');
+                window.location.hash = name;
             });
         });
 
@@ -42,6 +47,5 @@
             document.getElementById('about-container').classList.add('active');
         }
     </script>
-    <script src='projects/projects.js'></script> 
 </body>
 </html>

@@ -20,16 +20,27 @@
     color: #555;
     line-height: 1.4;
 }
-.project-media img {
+
+.project-media { 
     width: 200px;
-    height: auto;
+    height: 200px;
+    overflow: hidden;
     border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.project-media img {
+    width: 100%;
+    height: 100%;
 }
 
 .project-media video {
-    width: 200px;
-    height: auto;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    width: 100%;
+    height: 100%;
     background: #000;
+}
+
+.project-media canvas {
+    width: 100%;
+    height: 100%;
 }
