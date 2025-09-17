@@ -43,7 +43,8 @@
         if (card) {
             card.classList.add('active');
             section.classList.add('active');
-        } else {
+        } else { 
+            window.location.hash = 'about';
             document.getElementById('about-card').classList.add('active');
             document.getElementById('about-container').classList.add('active');
         }
