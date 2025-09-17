@@ -1,6 +1,7 @@
 export default function() {
     const canvas = document.createElement("canvas");
     const size = 50;
+    const fps = 15;
 
     canvas.width = size;
     canvas.height = size;
@@ -89,7 +90,7 @@ export default function() {
 
     reset();
 
-    setInterval(evolve,50);
+    setInterval(evolve,1000/fps);
 
     return canvas;
 }
