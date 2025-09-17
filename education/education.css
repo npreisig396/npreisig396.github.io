@@ -1,4 +1,4 @@
-.project-card {
+.education-card {
     display: flex;
     align-items: flex-start;
     gap: 1rem;
@@ -8,20 +8,20 @@
     border-radius: 8px;
     width: 100%;
 }
-.project-text {
+.education-text {
     flex: 1;
 }
-.project-title {
+.education-title {
     margin: 0;
     font-size: 1.5rem;
 }
-.project-description {
+.education-description {
     margin-top: 0.5rem;
     color: #555;
     line-height: 1.4;
 }
 
-.project-media { 
+.education-media { 
     width: 200px;
     height: 200px;
     overflow: hidden;
@@ -31,18 +31,18 @@
     justify-content: center;
 }
 
-.project-media img {
+.education-media img {
     height: 100%;
     height: 100%;
 }
 
-.project-media video {
+.education-media video {
     height: 100%;
     background: #000;
     justify-content: center;
 }
 
-.project-media canvas {
+.education-media canvas {
     height: 100%;
     image-rendering: pixelated;
     image-rendering: crisp-edges;

@@ -82,7 +82,6 @@ export default function() {
 
     function reset() {
         c = max_frames;
-        n = 2 + Math.floor(Math.random()*2);
         shuffle();
         for (let i = 0; i < size*size; i++) next[i] = Math.floor(Math.random() * n);
         update(true);
