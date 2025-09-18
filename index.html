@@ -16,17 +16,13 @@
     <div id='experience-container' class='section'></div>
     <div id='projects-container' class='section'></div>
 
-    <script>
+    <script type='module'>
+        import { buildPage } from '/templates/page.js';
+
         const cards = document.querySelectorAll('.card');
         cards.forEach(card => {
             const name = card.getAttribute('data-section');
-            fetch(name + '/' + name + '.html').then(r => r.text()).then(html => {
-                document.getElementById(name + '-container').innerHTML = html;
-                const script = document.createElement('script');
-                script.src = name + '/' + name + '.js';
-                script.type = 'module';
-                document.body.appendChild(script);
-            });
+            buildPage(name);
             card.addEventListener('click', () => {
                 document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
                 cards.forEach(card => card.classList.remove('active'));
