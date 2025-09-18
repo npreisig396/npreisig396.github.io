@@ -1,3 +1,6 @@
 [
-    {"title": "", "subtitle": "", "description": "", "media": ""}
+    {"title": "Machine Learning Researcher - Hutchresearch", "subtitle": "March 2024 - Present", "description": "Worked with a research team focused on furthering/applying our understandings of ML techniques. Used ML to simulate the Rosetta software to measure energy metrics of mutant protein. Experimented with a variety of models including CNN, RNN, and transformers. Used machine learning techniques to target areas of improvement in models.", "media": "experience/hutch.png"},
+    {"title": "University Instructor - Western Washington University", "subtitle": " September 2024 - Present", "description": "Developed a curriculum for a programming workshop course offered at WWU to help students apply computer science concepts to coding problems. Covered many topics including graphs, dynamic programming, and greedy algorithms.", "media": "education/wwu.png"},
+    {"title": "Physics Lab TA - Western Washington University", "subtitle": "January 2023 - June 2024", "description": "Led lab sections covering a wide variety of physics concepts including kinematics. Graded work and attended weekly seminars to develop pedagogical skills.", "media": "education/wwu.png"},
+    {"title": "Computer Science Tutor - Western Washington University", "subtitle": "January 2023 - December 2024", "description": "Helped students to complete assignments in C, Java, Python, and Assembly and taught students proper OOP structures, patterns, and implementations in Java.", "media": "education/wwu.png"}
 ]
