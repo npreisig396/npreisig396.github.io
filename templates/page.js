@@ -9,9 +9,9 @@ export function buildPage(name) {
             .then(response => response.json())
             .then(cards => cards.forEach(card => {
                 const clone = template.content.cloneNode(true);
-                if (card.title.length > 0) clone.querySelector('.page-title').textContent = card.title;
-                if (card.subtitle.length > 0) clone.querySelector('.page-subtitle').textContent = card.subtitle;
-                if (card.description.length > 0) clone.querySelector('.page-description').textContent = card.description;
+                if (card.title.length > 0) clone.querySelector('.page-title').innerHTML = card.title;
+                if (card.subtitle.length > 0) clone.querySelector('.page-subtitle').innerHTML = card.subtitle;
+                if (card.description.length > 0) clone.querySelector('.page-description').innerHTML = card.description;
                 if (card.media.length == 0) card.media = 'placeholder.png';
                 const mediaContainer = clone.querySelector('.page-media');
                 if (card.media.endsWith('.png')) {
