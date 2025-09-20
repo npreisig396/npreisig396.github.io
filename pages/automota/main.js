@@ -1,15 +1,17 @@
 const canvas = document.getElementById('myCanvas');
 const ctx = canvas.getContext('2d');
+const slider = document.getElementById('mySlider');
+const resetButton = document.getElementById('resetButton');
 
-canvas.width = canvas.offsetWidth/4;
-canvas.height = canvas.offsetHeight/4;
+canvas.width = canvas.offsetWidth/8;
+canvas.height = canvas.offsetHeight/8;
 ctx.imageSmoothingEnabled = false;
 
 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 const data = imageData.data.fill(255);
 let alive = new Set();
 
-const f = 60;
+let f = 60;
 
 function ij_to_idx(i,j) {
     return 4*(i*canvas.width + j);
@@ -19,22 +21,6 @@ function init() {
     for (let i = 0; i < canvas.height; i++) {
         for (let j = 0; j < canvas.width; j++) {
             if (Math.floor(Math.random()*3) == 0) alive.add(ij_to_idx(i,j));
-        }
-    }
-}
-
-function updateData() {
-    for (let i = 0; i < canvas.height; i++) {
-        for (let j = 0; j < canvas.width; j++) {
-            if (alive.has(ij_to_idx(i,j))) {
-                data[ij_to_idx(i,j)] = 50;
-                data[ij_to_idx(i,j)+1] = 50;
-                data[ij_to_idx(i,j)+2] = 50;
-            } else {
-                data[ij_to_idx(i,j)] = 255;
-                data[ij_to_idx(i,j)+1] = 255;
-                data[ij_to_idx(i,j)+2] = 255;
-            }
         }
     }
 }
@@ -65,15 +51,41 @@ function evolve() {
     alive = next;
 }
 
-function update() {
-    evolve();
-    updateData();
-    ctx.putImageData(imageData, 0, 0);
-    console.log('updating');
-}
 
 init();
 updateData();
 ctx.putImageData(imageData, 0, 0);
 
-setInterval(update, 100/f);
+let intervalID = setInterval(update, 1000/f);
+
+function update() {
+    evolve();
+    updateData();
+    ctx.putImageData(imageData, 0, 0);
+}
+
+resetButton.addEventListener('click', () => {
+    init();
+});
+
+slider.addEventListener('input', () => {
+    f = slider.value;
+    clearInterval(intervalID);
+    if (f > 0) intervalID = setInterval(update, 1000/f);
+});
+
+function updateData() {
+    for (let i = 0; i < canvas.height; i++) {
+        for (let j = 0; j < canvas.width; j++) {
+            if (alive.has(ij_to_idx(i,j))) {
+                data[ij_to_idx(i,j)] = 50;
+                data[ij_to_idx(i,j)+1] = 50;
+                data[ij_to_idx(i,j)+2] = 50;
+            } else {
+                data[ij_to_idx(i,j)] = 255;
+                data[ij_to_idx(i,j)+1] = 255;
+                data[ij_to_idx(i,j)+2] = 255;
+            }
+        }
+    }
+}

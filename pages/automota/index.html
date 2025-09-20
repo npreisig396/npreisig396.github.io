@@ -5,10 +5,19 @@
 <body style='height: 100%; margin: 0;'>
     <div style='display: flex; width: 100%; height: 100%;'>
         <div id='container' style='flex: 1; background: #ddd;'>
+            <div id='controls'>
+                <button id='resetButton' style='margin: 10px'>Reset</button>
+                <input type='range' id='mySlider' min='0' max='120' value='24'>
+                <button id='zoomIn'>+</button>
+                <button id='zoomOut'>-</button>
+                <label id='fps'>FPS: 0</label>
+            </div>
+            <div>
+            </div>
         </div>
         <div style='flex: 2; background: #aaa;'>
             <canvas id='myCanvas' style='display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges;'></canvas>
-            <script src='main.js'></script>
+            <script type='module' src='conways.js'></script>
         </div>
     </div>
 </body>
