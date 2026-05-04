@@ -239,33 +239,9 @@
 </div>
 <script>
 // ============================================================
-// DATA
+// DATA — loaded from sweets.csv at runtime
 // ============================================================
-const raw = `Name,Cake,Cookie,Ice Cream,Brownie,Pie
-Katelynn,1,2,3,4,5
-Nic,3,5,1,2,4
-Cooper,4,2,3,1,5
-Luke,5,4,2,3,1
-Meghan,5,4,1,2,3
-Nate,5,4,2,1,3
-Chris,5,3,4,1,2
-Anabel,2,1,5,3,4
-Richard,1,3,2,5,4
-Jack,5,2,3,4,1
-Braeden,1,3,2,4,5
-Brian,5,4,1,2,3
-Sophia,5,2,1,4,3
-Tyler,4,3,1,5,2
-Divdish,4,3,1,2,5
-Eleanor,5,1,2,3,4
-Bogdan,5,2,3,4,1
-Willow,5,3,2,1,4`;
-
-const data = d3.csvParse(raw, d => ({
-  name: d.Name,
-  ranks: { "Cake": +d.Cake, "Cookie": +d.Cookie, "Ice Cream": +d["Ice Cream"],
-           "Brownie": +d.Brownie, "Pie": +d.Pie }
-}));
+let data;                      // populated by load()
 const cats = ["Cake", "Cookie", "Ice Cream", "Brownie", "Pie"];
 const emoji = { "Cake": "🍰", "Cookie": "🍪", "Ice Cream": "🍦", "Brownie": "🟫", "Pie": "🥧" };
 
@@ -323,19 +299,22 @@ function rankPreview(person) {
 }
 function clear(sel) { d3.select(sel).selectAll("*").remove(); }
 
-// Jitter so equal-ranked people don't overlap
-const jitterMap = new Map();
-cats.forEach(c => {
-  const grouped = d3.groups(data, d => d.ranks[c]);
-  grouped.forEach(([rank, members]) => {
-    members.sort((a, b) => d3.ascending(a.name, b.name));
-    members.forEach((m, i) => {
-      const span = (members.length - 1) * 7;
-      const offset = members.length === 1 ? 0 : -span / 2 + i * 7;
-      jitterMap.set(m.name + "|" + c, offset);
+// Jitter map — populated after data load
+let jitterMap = new Map();
+function buildJitter() {
+  jitterMap = new Map();
+  cats.forEach(c => {
+    const grouped = d3.groups(data, d => d.ranks[c]);
+    grouped.forEach(([rank, members]) => {
+      members.sort((a, b) => d3.ascending(a.name, b.name));
+      members.forEach((m, i) => {
+        const span = (members.length - 1) * 7;
+        const offset = members.length === 1 ? 0 : -span / 2 + i * 7;
+        jitterMap.set(m.name + "|" + c, offset);
+      });
     });
   });
-});
+}
 
 // ============================================================
 // BUMP CHART (parallel coordinates)
@@ -547,7 +526,7 @@ function greedyOrder(people) {
   }
   return order;
 }
-const ordered = greedyOrder(data);
+let ordered;
 
 function renderHeat() {
   clear("#heat"); clear("#heat-legend");
@@ -1048,9 +1027,26 @@ document.getElementById("t-cb").addEventListener("change", e => {
   renderAll();
 });
 
-renderAll();
-d3.select("#picker").property("value", data[0].name);
-renderNeighbors(data[0].name);
+d3.csv("sweets.csv", row => ({
+  name: row.Name,
+  ranks: {
+    "Cake": +row.Cake, "Cookie": +row.Cookie, "Ice Cream": +row["Ice Cream"],
+    "Brownie": +row.Brownie, "Pie": +row.Pie
+  }
+})).then(rows => {
+  data = rows;
+  buildJitter();
+  ordered = greedyOrder(data);
+  renderAll();
+  d3.select("#picker").property("value", data[0].name);
+  renderNeighbors(data[0].name);
+}).catch(err => {
+  d3.select(".wrap").insert("div", ":first-child")
+    .style("padding", "12px 16px").style("border-radius", "8px")
+    .style("background", "#fee").style("color", "#900")
+    .style("margin-bottom", "12px")
+    .text("Couldn't load sweets.csv — make sure the file sits next to this page and you're serving over http(s) (browsers block fetch from file://). Error: " + err.message);
+});
 </script>
 </body>
 </html>
