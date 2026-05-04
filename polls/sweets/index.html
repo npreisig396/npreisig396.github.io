@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sweet Rankings</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #fff7f0;
+    --card: #ffffff;
+    --ink: #2b1d2a;
+    --muted: #8a7a87;
+    --grid: #e8d8d0;
+    --accent: #0072B2;
+    --accent-soft: #b9c9d9;
+    --shade: #f3eee8;
+  }
+  body.dark {
+    --bg: #14161c;
+    --card: #1f222b;
+    --ink: #f0e8e2;
+    --muted: #9ea3b3;
+    --grid: #2e323d;
+    --accent: #56B4E9;
+    --accent-soft: #2c4858;
+    --shade: #232732;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    transition: background .25s, color .25s; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 24px 64px; }
+  h1 { font-weight: 800; font-size: 36px; letter-spacing: -0.02em; margin: 0 0 4px; }
+  h2 { font-weight: 800; font-size: 24px; letter-spacing: -0.01em;
+       margin: 56px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .section-sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    padding: 10px 14px; margin-bottom: 24px;
+    background: var(--card); border: 1px solid var(--grid); border-radius: 12px;
+    position: sticky; top: 8px; z-index: 10; backdrop-filter: blur(6px); }
+  .toolbar .label { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none; font-size: 13px; font-weight: 600; }
+  .toggle input { appearance: none; width: 36px; height: 20px;
+    background: var(--grid); border-radius: 999px; position: relative;
+    outline: none; cursor: pointer; transition: background .15s; }
+  .toggle input:checked { background: var(--accent); }
+  .toggle input::before { content: ""; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff;
+    transition: transform .15s; }
+  .toggle input:checked::before { transform: translateX(16px); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 8px 0 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border-radius: 999px; background: var(--card); border: 1px solid var(--grid);
+    color: var(--ink);
+    font-size: 12px; cursor: pointer; transition: all .15s; user-select: none; }
+  .chip:hover { transform: translateY(-1px); }
+  .chip .swatch { width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; }
+  .chip.dim { opacity: 0.35; }
+  svg { width: 100%; height: auto; display: block; }
+  .axis text { fill: var(--ink); font-size: 13px; font-weight: 600; }
+  .axis-label { font-size: 26px; }
+  .rank-tick { fill: var(--muted); font-size: 11px; }
+  .person-line { fill: none; stroke-width: 2; opacity: 0.55;
+    transition: opacity .15s, stroke-width .15s; }
+  .person-line.hot { opacity: 1; stroke-width: 3.5; }
+  .person-line.cold { opacity: 0.08; }
+  .person-dot { stroke: var(--bg); stroke-width: 1.5; }
+  .name-label { font-size: 11px; font-weight: 600; pointer-events: none; }
+  .avg-bar { fill: var(--accent-soft); }
+  .avg-bar.best { fill: var(--accent); }
+  .avg-val { font-size: 12px; fill: var(--ink); font-weight: 600; }
+  .avg-cat { font-size: 14px; font-weight: 600; fill: var(--ink); }
+  footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+
+  .heat-cell { stroke: var(--bg); stroke-width: 2; }
+  .heat-label { font-size: 11px; font-weight: 600; fill: var(--ink); }
+  .heat-rank { font-size: 12px; font-weight: 700;
+    pointer-events: none; text-anchor: middle; }
+  .stack-seg { stroke: var(--bg); stroke-width: 2; }
+  .stack-num { font-size: 11px; font-weight: 700;
+    text-anchor: middle; pointer-events: none; }
+  .podium-card { display: inline-block; vertical-align: bottom;
+    width: 19%; text-align: center; }
+  .podium-emoji { font-size: 60px; line-height: 1; }
+  .podium-name { font-size: 15px; font-weight: 700; margin-top: 4px; }
+  .podium-meta { font-size: 12px; color: var(--muted); }
+  .podium-bar { height: 8px; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+    margin-top: 8px; }
+  .ctrl-row { display: flex; align-items: center; gap: 14px;
+    padding: 8px 0; border-bottom: 1px dashed var(--grid); }
+  .ctrl-emoji { font-size: 28px; width: 38px; text-align: center; }
+  .ctrl-cat { font-weight: 700; width: 110px; }
+  .ctrl-bar-bg { flex: 1; height: 14px; background: var(--card);
+    border: 1px solid var(--grid); border-radius: 8px; overflow: hidden; }
+  .ctrl-bar { height: 100%;
+    background: linear-gradient(90deg, var(--accent-soft), var(--accent)); }
+  .ctrl-val { font-variant-numeric: tabular-nums; color: var(--muted);
+    font-size: 12px; width: 70px; text-align: right; }
+  .twin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .twin-card { background: var(--card); border: 1px solid var(--grid);
+    border-radius: 12px; padding: 16px; }
+  .twin-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 8px; }
+  .twin-pair { font-size: 20px; font-weight: 800; }
+  .twin-score { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .twin-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: 13px; }
+  .twin-list li { padding: 2px 0; }
+  .legend-mini { display: flex; gap: 12px; margin: 8px 0 16px;
+    font-size: 11px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+  .legend-mini .sw { display: inline-block; width: 14px; height: 14px;
+    border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+  .super-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .super-card { background: var(--card); border: 1px solid var(--grid);
+    border-radius: 14px; padding: 14px 16px;
+    border-left: 4px solid var(--accent); }
+  .super-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); }
+  .super-line { font-size: 17px; font-weight: 700; margin-top: 4px; }
+  .super-detail { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  select { font-size: 14px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--grid); background: var(--card); color: var(--ink); }
+  .h2h-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin-bottom: 18px; }
+  .h2h-pickers { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+  .h2h-row { display: flex; align-items: center; gap: 12px; padding: 10px 0;
+    border-bottom: 1px dashed var(--grid); }
+  .h2h-emoji { font-size: 26px; width: 36px; text-align: center; }
+  .h2h-name { font-size: 13px; }
+  .h2h-bar-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .h2h-bar { height: 12px; border-radius: 6px; background: var(--accent-soft);
+    position: relative; overflow: hidden; }
+  .h2h-bar .fill { position: absolute; top: 0; left: 0; bottom: 0;
+    background: var(--accent); }
+  .h2h-bar.win { background: var(--accent); }
+  .h2h-bar.lose { background: var(--accent-soft); opacity: 0.5; }
+  .h2h-rank { font-size: 12px; font-weight: 700; color: var(--ink);
+    width: 24px; text-align: center; }
+  .h2h-trophy { font-size: 13px; color: var(--muted); width: 50px;
+    text-align: right; }
+  .winner-tag { display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; background: var(--accent); color: #fff;
+    margin-left: 6px; }
+  .map-node { stroke: var(--bg); stroke-width: 2; cursor: pointer;
+    transition: r .15s; }
+  .map-label { font-size: 11px; font-weight: 600; pointer-events: none;
+    fill: var(--ink); }
+  .if-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .if-card { background: var(--card); border: 1px solid var(--grid);
+    border-radius: 12px; padding: 14px 16px; }
+  .if-title { font-size: 14px; font-weight: 800; margin: 0 0 4px; }
+  .if-meta { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+  .if-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .if-cat { width: 90px; font-size: 12px; }
+  .if-bar-bg { flex: 1; height: 10px; background: var(--shade);
+    border-radius: 5px; overflow: hidden; }
+  .if-bar { height: 100%; background: var(--accent); }
+  .if-val { width: 36px; text-align: right; font-size: 11px;
+    color: var(--muted); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sweet rankings</h1>
+  <p class="sub">Each line is one person. Lower is better — 1 is their favorite, 5 is their least. Hover a name to single it out.</p>
+
+  <div class="toolbar">
+    <span class="label">View:</span>
+    <label class="toggle"><input id="t-dark" type="checkbox"> 🌙 Dark mode</label>
+    <label class="toggle"><input id="t-cb" type="checkbox" checked> 👁 Colorblind-safe palette</label>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <svg id="chart" viewBox="0 0 1040 540" preserveAspectRatio="xMidYMid meet"></svg>
+  <svg id="avg" viewBox="0 0 1040 180" preserveAspectRatio="xMidYMid meet"></svg>
+  <footer>Bars above show the group's average rank per sweet (shorter = more loved).</footer>
+
+  <h2>🏅 Superlatives</h2>
+  <p class="section-sub">Auto-generated fun facts straight from the data.</p>
+  <div class="super-grid" id="supers"></div>
+
+  <h2>🔥 Heatmap</h2>
+  <p class="section-sub">Rows are people (sorted by similarity), columns are sweets.</p>
+  <div class="legend-mini" id="heat-legend"></div>
+  <svg id="heat" viewBox="0 0 1040 720" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>📊 Where the votes landed</h2>
+  <p class="section-sub">For each sweet, how many 1st-place votes vs 2nd vs ... vs 5th-place votes did it get?</p>
+  <div class="legend-mini" id="stack-legend"></div>
+  <svg id="stack" viewBox="0 0 1040 320" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>🏆 Podium — first-place votes</h2>
+  <p class="section-sub">Who was crowned #1 the most often?</p>
+  <div id="podium"></div>
+
+  <h2>🎯 Controversy meter</h2>
+  <p class="section-sub">Standard deviation of ranks per sweet — long bars mean the group is divided, short bars mean people agree.</p>
+  <div id="controversy"></div>
+
+  <h2>🥊 Sweet vs Sweet tournament</h2>
+  <p class="section-sub">For every pair of sweets, what % of people prefer the row sweet over the column? Hot cells = the row sweet usually wins that matchup.</p>
+  <svg id="tourney" viewBox="0 0 1040 460" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>🦄 Quirkiness leaderboard</h2>
+  <p class="section-sub">How far is each person from the group's average ranking? Long bar = unique palate, short bar = your tastes match the crowd.</p>
+  <svg id="quirk" viewBox="0 0 1040 540" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>🗺 Taste map</h2>
+  <p class="section-sub">Each dot is a person, placed so that <em>distance = disagreement</em>. People standing close to each other have similar rankings; clusters reveal taste tribes. Dot color = their #1 pick.</p>
+  <div class="legend-mini" id="map-legend"></div>
+  <svg id="tastemap" viewBox="0 0 1040 560" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>🍯 If you love ___, you also reach for...</h2>
+  <p class="section-sub">For each sweet, we take the people who ranked it #1 and look at how they ranked the others on average. Shorter bars = also a hit with that fan-club.</p>
+  <div class="if-grid" id="ifgrid"></div>
+
+  <h2>⚔ Head-to-head battle</h2>
+  <p class="section-sub">Pick two people and see who ranked each sweet higher. Winners get a 🏆 per sweet, and we tally the overall.</p>
+  <div class="h2h-pickers">
+    <label>Fighter A: <select id="h2h-a"></select></label>
+    <label>Fighter B: <select id="h2h-b"></select></label>
+  </div>
+  <div id="h2h"></div>
+
+  <h2>🔎 Find your taste neighbors</h2>
+  <p class="section-sub">Pick a person (or hover their legend chip up top) to see who shares their palate and who's their dietary opposite.</p>
+  <div style="margin-bottom: 14px;">
+    <label for="picker" style="font-weight:600; margin-right:8px;">Person:</label>
+    <select id="picker"></select>
+  </div>
+  <div class="twin-grid" id="neighbors"></div>
+
+  <h2>👯 Sweet twins &amp; sweet enemies</h2>
+  <p class="section-sub">Whose taste matches whose? Pairs are scored by sum of squared rank differences across all five sweets — lower means closer agreement.</p>
+  <div class="twin-grid" id="twins"></div>
+</div>
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const raw = `Name,Cake,Cookie,Ice Cream,Brownie,Pie
+Katelynn,1,2,3,4,5
+Nic,3,5,1,2,4
+Cooper,4,2,3,1,5
+Luke,5,4,2,3,1
+Meghan,5,4,1,2,3
+Nate,5,4,2,1,3
+Chris,5,3,4,1,2
+Anabel,2,1,5,3,4
+Richard,1,3,2,5,4
+Jack,5,2,3,4,1
+Braeden,1,3,2,4,5
+Brian,5,4,1,2,3
+Sophia,5,2,1,4,3
+Tyler,4,3,1,5,2
+Divdish,4,3,1,2,5
+Eleanor,5,1,2,3,4
+Bogdan,5,2,3,4,1
+Willow,5,3,2,1,4`;
+
+const data = d3.csvParse(raw, d => ({
+  name: d.Name,
+  ranks: { "Cake": +d.Cake, "Cookie": +d.Cookie, "Ice Cream": +d["Ice Cream"],
+           "Brownie": +d.Brownie, "Pie": +d.Pie }
+}));
+const cats = ["Cake", "Cookie", "Ice Cream", "Brownie", "Pie"];
+const emoji = { "Cake": "🍰", "Cookie": "🍪", "Ice Cream": "🍦", "Brownie": "🟫", "Pie": "🥧" };
+
+// ============================================================
+// PALETTES (toggled)
+// ============================================================
+let cbMode = true;
+let darkMode = false;
+
+const okabeIto = ["#E69F00", "#56B4E9", "#009E73", "#F0E442",
+                  "#0072B2", "#D55E00", "#CC79A7", "#000000"];
+const dashPatterns = ["", "6 3", "1 4", "10 3 2 3"];
+const vivid = ["#e6194b","#3cb44b","#ffe119","#4363d8","#f58231","#911eb4",
+               "#46f0f0","#f032e6","#bcf60c","#fabebe","#008080","#e6beff",
+               "#9a6324","#fffac8","#800000","#aaffc3","#808000","#000075"];
+
+function rankColor(r) {
+  // r in [1..5], 1=best
+  if (cbMode) return d3.interpolateCividis((r - 1) / 4);
+  // RdYlGn reversed: 1=green, 5=red
+  return d3.interpolateRdYlGn(1 - (r - 1) / 4);
+}
+function pctColor(p) {
+  return cbMode ? d3.interpolateCividis(p) : d3.interpolateRdYlGn(p);
+}
+// readable text color over a rank-colored cell
+function rankInkOver(r) {
+  if (cbMode) return r >= 4 ? "#1a1a1a" : "#fff";
+  // RdYlGn: middle (rank 3) is yellow → dark text; red/green → white
+  return r === 3 ? "#1a1a1a" : "#fff";
+}
+function pctInkOver(p) {
+  if (cbMode) return p > 0.6 ? "#1a1a1a" : "#fff";
+  return (p > 0.4 && p < 0.6) ? "#1a1a1a" : "#fff";
+}
+function styleFor(name) {
+  const i = data.findIndex(d => d.name === name);
+  if (cbMode) {
+    return {
+      color: okabeIto[i % okabeIto.length],
+      dash: dashPatterns[Math.floor(i / okabeIto.length) % dashPatterns.length]
+    };
+  }
+  return { color: vivid[i % vivid.length], dash: "" };
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function dist(a, b) {
+  return cats.reduce((s, c) => s + Math.pow(a.ranks[c] - b.ranks[c], 2), 0);
+}
+function rankPreview(person) {
+  return cats.map(c => emoji[c] + person.ranks[c]).join("  ");
+}
+function clear(sel) { d3.select(sel).selectAll("*").remove(); }
+
+// Jitter so equal-ranked people don't overlap
+const jitterMap = new Map();
+cats.forEach(c => {
+  const grouped = d3.groups(data, d => d.ranks[c]);
+  grouped.forEach(([rank, members]) => {
+    members.sort((a, b) => d3.ascending(a.name, b.name));
+    members.forEach((m, i) => {
+      const span = (members.length - 1) * 7;
+      const offset = members.length === 1 ? 0 : -span / 2 + i * 7;
+      jitterMap.set(m.name + "|" + c, offset);
+    });
+  });
+});
+
+// ============================================================
+// BUMP CHART (parallel coordinates)
+// ============================================================
+let bumpLines, bumpChips;
+function renderBump() {
+  clear("#chart"); clear("#legend");
+  const svg = d3.select("#chart");
+  const W = 1040, H = 540;
+  const M = { top: 70, right: 130, bottom: 30, left: 70 };
+  const innerW = W - M.left - M.right, innerH = H - M.top - M.bottom;
+  const x = d3.scalePoint().domain(cats).range([0, innerW]).padding(0.1);
+  const y = d3.scaleLinear().domain([1, 5]).range([0, innerH]);
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  for (let r = 1; r <= 5; r++) {
+    g.append("line").attr("x1", 0).attr("x2", innerW)
+      .attr("y1", y(r)).attr("y2", y(r))
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", -10).attr("y", y(r) + 4).attr("text-anchor", "end")
+      .text(r === 1 ? "1 ★" : r);
+  }
+
+  const cat = g.selectAll(".cat").data(cats).enter().append("g")
+    .attr("transform", d => `translate(${x(d)},0)`);
+  cat.append("text").attr("class", "axis-label").attr("text-anchor", "middle")
+    .attr("y", -34).text(d => emoji[d]);
+  cat.append("text").attr("class", "axis text").attr("text-anchor", "middle")
+    .attr("y", -10).text(d => d);
+  cat.append("line").attr("y1", 0).attr("y2", innerH)
+    .attr("stroke", "var(--grid)");
+
+  const line = d3.line()
+    .x(d => x(d.cat))
+    .y(d => y(d.rank) + jitterMap.get(d.name + "|" + d.cat))
+    .curve(d3.curveMonotoneX);
+
+  const personData = data.map(p => ({
+    name: p.name,
+    pts: cats.map(c => ({ cat: c, rank: p.ranks[c], name: p.name }))
+  }));
+
+  bumpLines = g.append("g").selectAll(".person-line")
+    .data(personData).enter().append("path")
+    .attr("class", "person-line")
+    .attr("data-name", d => d.name)
+    .attr("stroke", d => styleFor(d.name).color)
+    .attr("stroke-dasharray", d => styleFor(d.name).dash)
+    .attr("d", d => line(d.pts));
+
+  const dotGroups = g.append("g").selectAll(".person-dot-group")
+    .data(personData).enter().append("g");
+  dotGroups.selectAll("circle").data(d => d.pts).enter().append("circle")
+    .attr("class", "person-dot")
+    .attr("cx", d => x(d.cat))
+    .attr("cy", d => y(d.rank) + jitterMap.get(d.name + "|" + d.cat))
+    .attr("r", 3.5)
+    .attr("fill", d => styleFor(d.name).color);
+
+  g.append("g").selectAll(".name-label")
+    .data(personData).enter().append("text")
+    .attr("class", "name-label")
+    .attr("data-name", d => d.name)
+    .attr("x", innerW + 8)
+    .attr("y", d => y(d.pts[4].rank) + jitterMap.get(d.name + "|Pie") + 4)
+    .attr("fill", d => styleFor(d.name).color)
+    .text(d => d.name);
+
+  // Legend
+  const legend = d3.select("#legend");
+  bumpChips = legend.selectAll(".chip").data(personData).enter().append("span")
+    .attr("class", "chip")
+    .on("mouseenter", (e, d) => { highlight(d.name);
+      d3.select("#picker").property("value", d.name); renderNeighbors(d.name); })
+    .on("mouseleave", () => highlight(null));
+  bumpChips.append("span").attr("class", "swatch")
+    .style("background", d => styleFor(d.name).color)
+    .style("border", d => styleFor(d.name).dash
+      ? "2px dotted " + styleFor(d.name).color : "none");
+  bumpChips.append("span").text(d => d.name);
+
+  bumpLines.on("mouseenter", (e, d) => { highlight(d.name);
+    d3.select("#picker").property("value", d.name); renderNeighbors(d.name); })
+    .on("mouseleave", () => highlight(null));
+}
+
+function highlight(name) {
+  d3.selectAll(".person-line")
+    .classed("hot", d => d.name === name)
+    .classed("cold", d => name && d.name !== name);
+  d3.selectAll(".name-label")
+    .style("font-size", d => d.name === name ? "13px" : "11px")
+    .style("font-weight", d => d.name === name ? "800" : "600");
+  d3.selectAll(".chip")
+    .classed("dim", d => name && d.name !== name);
+}
+
+// ============================================================
+// AVERAGE RANK BARS
+// ============================================================
+function renderAvg() {
+  clear("#avg");
+  const svg = d3.select("#avg");
+  const W = 1040, H = 180;
+  const M = { top: 20, right: 130, bottom: 20, left: 130 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+  const avgs = cats.map(c => ({ cat: c, avg: d3.mean(data, d => d.ranks[c]) }));
+  const minAvg = d3.min(avgs, d => d.avg);
+  const x = d3.scaleLinear().domain([0, 5]).range([0, iW]);
+  const y = d3.scaleBand().domain(cats).range([0, iH]).padding(0.25);
+  avgs.forEach(d => {
+    const row = g.append("g").attr("transform", `translate(0,${y(d.cat)})`);
+    row.append("text").attr("class", "avg-cat")
+      .attr("x", -10).attr("y", y.bandwidth() / 2 + 5)
+      .attr("text-anchor", "end").text(emoji[d.cat] + "  " + d.cat);
+    row.append("rect")
+      .attr("class", "avg-bar" + (d.avg === minAvg ? " best" : ""))
+      .attr("height", y.bandwidth()).attr("width", x(d.avg)).attr("rx", 4);
+    row.append("text").attr("class", "avg-val")
+      .attr("x", x(d.avg) + 8).attr("y", y.bandwidth() / 2 + 4)
+      .text("avg rank " + d.avg.toFixed(2));
+  });
+}
+
+// ============================================================
+// SUPERLATIVES
+// ============================================================
+function renderSupers() {
+  clear("#supers");
+  const div = d3.select("#supers");
+  const stats = cats.map(c => ({
+    cat: c,
+    avg: d3.mean(data, p => p.ranks[c]),
+    sd: d3.deviation(data, p => p.ranks[c]),
+    firsts: data.filter(p => p.ranks[c] === 1),
+    lasts: data.filter(p => p.ranks[c] === 5)
+  }));
+  const bestAvg = d3.least(stats, s => s.avg);
+  const worstAvg = d3.greatest(stats, s => s.avg);
+  const mostDivisive = d3.greatest(stats, s => s.sd);
+  const mostAgreed = d3.least(stats, s => s.sd);
+  const mostFirsts = d3.greatest(stats, s => s.firsts.length);
+  const mostLasts = d3.greatest(stats, s => s.lasts.length);
+
+  // Quirkiest person
+  const meanV = {}; cats.forEach(c => meanV[c] = d3.mean(data, p => p.ranks[c]));
+  const quirky = data.map(p => ({
+    name: p.name,
+    q: cats.reduce((s, c) => s + Math.pow(p.ranks[c] - meanV[c], 2), 0)
+  }));
+  const unicorn = d3.greatest(quirky, p => p.q);
+  const sheep = d3.least(quirky, p => p.q);
+
+  const facts = [
+    { tag: "GROUP FAVORITE", line: emoji[bestAvg.cat] + " " + bestAvg.cat,
+      detail: "Lowest avg rank: " + bestAvg.avg.toFixed(2) },
+    { tag: "MOST AVOIDED", line: emoji[worstAvg.cat] + " " + worstAvg.cat,
+      detail: "Highest avg rank: " + worstAvg.avg.toFixed(2) },
+    { tag: "MOST 1ST-PLACE VOTES",
+      line: emoji[mostFirsts.cat] + " " + mostFirsts.cat,
+      detail: mostFirsts.firsts.length + " people put it #1: " +
+              mostFirsts.firsts.map(p => p.name).join(", ") },
+    { tag: "MOST LAST-PLACE VOTES",
+      line: emoji[mostLasts.cat] + " " + mostLasts.cat,
+      detail: mostLasts.lasts.length + " people put it #5" },
+    { tag: "MOST DIVISIVE",
+      line: emoji[mostDivisive.cat] + " " + mostDivisive.cat,
+      detail: "σ = " + mostDivisive.sd.toFixed(2) + " — strong opinions both ways" },
+    { tag: "MOST AGREED-UPON",
+      line: emoji[mostAgreed.cat] + " " + mostAgreed.cat,
+      detail: "σ = " + mostAgreed.sd.toFixed(2) + " — group lines up" },
+    { tag: "QUIRKIEST PERSON 🦄", line: unicorn.name,
+      detail: "Furthest from the group average" },
+    { tag: "MOST CONFORMING 🐑", line: sheep.name,
+      detail: "Closest to the group average" },
+    { tag: "TOTAL VOTERS", line: data.length + " people",
+      detail: cats.length + " sweets ranked 1–5" }
+  ];
+
+  facts.forEach(f => {
+    const card = div.append("div").attr("class", "super-card");
+    card.append("div").attr("class", "super-tag").text(f.tag);
+    card.append("div").attr("class", "super-line").text(f.line);
+    card.append("div").attr("class", "super-detail").text(f.detail);
+  });
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+function greedyOrder(people) {
+  const remaining = people.slice();
+  const meanV = cats.map(c => d3.mean(people, p => p.ranks[c]));
+  remaining.sort((a, b) => {
+    const da = cats.reduce((s, c, i) => s + Math.pow(a.ranks[c] - meanV[i], 2), 0);
+    const db = cats.reduce((s, c, i) => s + Math.pow(b.ranks[c] - meanV[i], 2), 0);
+    return da - db;
+  });
+  const order = [remaining.shift()];
+  while (remaining.length) {
+    const last = order[order.length - 1];
+    let bestI = 0, bestD = Infinity;
+    remaining.forEach((p, i) => {
+      const d = dist(last, p); if (d < bestD) { bestD = d; bestI = i; }
+    });
+    order.push(remaining.splice(bestI, 1)[0]);
+  }
+  return order;
+}
+const ordered = greedyOrder(data);
+
+function renderHeat() {
+  clear("#heat"); clear("#heat-legend");
+  const svg = d3.select("#heat");
+  const W = 1040, rowH = 32;
+  const M = { top: 50, right: 20, bottom: 20, left: 110 };
+  const iW = W - M.left - M.right, iH = ordered.length * rowH;
+  svg.attr("viewBox", `0 0 ${W} ${iH + M.top + M.bottom}`);
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+  const x = d3.scaleBand().domain(cats).range([0, iW]).padding(0.05);
+  const y = d3.scaleBand().domain(ordered.map(d => d.name)).range([0, iH]).padding(0.08);
+
+  cats.forEach(c => {
+    g.append("text").attr("class", "axis text")
+      .attr("x", x(c) + x.bandwidth() / 2).attr("y", -22)
+      .attr("text-anchor", "middle").text(emoji[c]).style("font-size", "22px");
+    g.append("text").attr("class", "axis text")
+      .attr("x", x(c) + x.bandwidth() / 2).attr("y", -6)
+      .attr("text-anchor", "middle").text(c);
+  });
+
+  ordered.forEach(p => {
+    g.append("text").attr("class", "heat-label")
+      .attr("x", -10).attr("y", y(p.name) + y.bandwidth() / 2 + 4)
+      .attr("text-anchor", "end").text(p.name);
+    cats.forEach(c => {
+      const r = p.ranks[c];
+      g.append("rect").attr("class", "heat-cell")
+        .attr("x", x(c)).attr("y", y(p.name))
+        .attr("width", x.bandwidth()).attr("height", y.bandwidth())
+        .attr("rx", 4).attr("fill", rankColor(r));
+      g.append("text").attr("class", "heat-rank")
+        .attr("x", x(c) + x.bandwidth() / 2)
+        .attr("y", y(p.name) + y.bandwidth() / 2 + 4)
+        .attr("fill", rankInkOver(r)).text(r);
+    });
+  });
+
+  const hl = d3.select("#heat-legend");
+  [1, 2, 3, 4, 5].forEach(r => {
+    const span = hl.append("span");
+    span.append("span").attr("class", "sw").style("background", rankColor(r));
+    span.append("span").text("rank " + r);
+  });
+}
+
+// ============================================================
+// STACKED BARS
+// ============================================================
+function renderStack() {
+  clear("#stack"); clear("#stack-legend");
+  const svg = d3.select("#stack");
+  const W = 1040, H = 320;
+  const M = { top: 30, right: 20, bottom: 30, left: 110 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+  const stackData = cats.map(c => ({
+    cat: c,
+    counts: [1, 2, 3, 4, 5].map(r => data.filter(p => p.ranks[c] === r).length)
+  }));
+  const x = d3.scaleLinear().domain([0, data.length]).range([0, iW]);
+  const y = d3.scaleBand().domain(cats).range([0, iH]).padding(0.2);
+  stackData.forEach(d => {
+    let cum = 0;
+    d.counts.forEach((n, i) => {
+      const r = i + 1;
+      if (n > 0) {
+        g.append("rect").attr("class", "stack-seg")
+          .attr("x", x(cum)).attr("y", y(d.cat))
+          .attr("width", x(n)).attr("height", y.bandwidth())
+          .attr("fill", rankColor(r));
+        g.append("text").attr("class", "stack-num")
+          .attr("x", x(cum) + x(n) / 2).attr("y", y(d.cat) + y.bandwidth() / 2 + 4)
+          .attr("fill", rankInkOver(r)).text(n);
+      }
+      cum += n;
+    });
+    g.append("text").attr("class", "axis text")
+      .attr("x", -10).attr("y", y(d.cat) + y.bandwidth() / 2 + 5)
+      .attr("text-anchor", "end")
+      .text(emoji[d.cat] + "  " + d.cat);
+  });
+  const sl = d3.select("#stack-legend");
+  [1, 2, 3, 4, 5].forEach(r => {
+    const span = sl.append("span");
+    span.append("span").attr("class", "sw").style("background", rankColor(r));
+    span.append("span").text(r === 1 ? "1st-place votes" : r + "th");
+  });
+}
+
+// ============================================================
+// PODIUM
+// ============================================================
+function renderPodium() {
+  clear("#podium");
+  const div = d3.select("#podium");
+  const fv = cats.map(c => ({
+    cat: c, n: data.filter(p => p.ranks[c] === 1).length,
+    fans: data.filter(p => p.ranks[c] === 1).map(p => p.name)
+  })).sort((a, b) => b.n - a.n);
+  const max = d3.max(fv, d => d.n);
+  fv.forEach((d, i) => {
+    const card = div.append("div").attr("class", "podium-card");
+    card.append("div").attr("class", "podium-emoji").text(emoji[d.cat]);
+    card.append("div").attr("class", "podium-name")
+      .text((i === 0 ? "🥇 " : i === 1 ? "🥈 " : i === 2 ? "🥉 " : "") + d.cat);
+    card.append("div").attr("class", "podium-meta")
+      .text(d.n + " first-place vote" + (d.n === 1 ? "" : "s"));
+    card.append("div").attr("class", "podium-bar")
+      .style("width", (10 + (d.n / max) * 90) + "%")
+      .style("margin-left", "auto").style("margin-right", "auto")
+      .style("opacity", 0.4 + 0.6 * (d.n / max));
+    card.append("div").attr("class", "podium-meta")
+      .style("margin-top", "6px").style("font-size", "11px")
+      .text(d.fans.length ? d.fans.join(", ") : "—");
+  });
+}
+
+// ============================================================
+// CONTROVERSY
+// ============================================================
+function renderCtrl() {
+  clear("#controversy");
+  const div = d3.select("#controversy");
+  const ctrl = cats.map(c => ({ cat: c, sd: d3.deviation(data, p => p.ranks[c]) }))
+    .sort((a, b) => b.sd - a.sd);
+  const max = d3.max(ctrl, d => d.sd);
+  ctrl.forEach(d => {
+    const row = div.append("div").attr("class", "ctrl-row");
+    row.append("div").attr("class", "ctrl-emoji").text(emoji[d.cat]);
+    row.append("div").attr("class", "ctrl-cat").text(d.cat);
+    const bg = row.append("div").attr("class", "ctrl-bar-bg");
+    bg.append("div").attr("class", "ctrl-bar")
+      .style("width", (d.sd / max * 100) + "%");
+    row.append("div").attr("class", "ctrl-val").text("σ = " + d.sd.toFixed(2));
+  });
+}
+
+// ============================================================
+// TOURNAMENT
+// ============================================================
+function renderTourney() {
+  clear("#tourney");
+  const svg = d3.select("#tourney");
+  const W = 1040, H = 460;
+  const M = { top: 80, right: 20, bottom: 20, left: 130 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+  const x = d3.scaleBand().domain(cats).range([0, iW]).padding(0.06);
+  const y = d3.scaleBand().domain(cats).range([0, iH]).padding(0.06);
+  cats.forEach(c => {
+    g.append("text").attr("class", "axis text")
+      .attr("x", x(c) + x.bandwidth() / 2).attr("y", -34)
+      .attr("text-anchor", "middle").style("font-size", "20px").text(emoji[c]);
+    g.append("text").attr("class", "axis text")
+      .attr("x", x(c) + x.bandwidth() / 2).attr("y", -14)
+      .attr("text-anchor", "middle").text(c);
+    g.append("text").attr("class", "axis text")
+      .attr("x", -10).attr("y", y(c) + y.bandwidth() / 2 + 5)
+      .attr("text-anchor", "end").text(emoji[c] + "  " + c);
+  });
+  cats.forEach(rowCat => {
+    cats.forEach(colCat => {
+      if (rowCat === colCat) {
+        g.append("rect").attr("x", x(colCat)).attr("y", y(rowCat))
+          .attr("width", x.bandwidth()).attr("height", y.bandwidth())
+          .attr("rx", 6).attr("fill", "var(--shade)");
+        g.append("text").attr("class", "heat-rank")
+          .attr("x", x(colCat) + x.bandwidth() / 2)
+          .attr("y", y(rowCat) + y.bandwidth() / 2 + 5)
+          .attr("fill", "var(--muted)").text("—");
+        return;
+      }
+      const wins = data.filter(p => p.ranks[rowCat] < p.ranks[colCat]).length;
+      const pct = wins / data.length;
+      g.append("rect").attr("x", x(colCat)).attr("y", y(rowCat))
+        .attr("width", x.bandwidth()).attr("height", y.bandwidth())
+        .attr("rx", 6).attr("fill", pctColor(pct));
+      g.append("text").attr("class", "heat-rank")
+        .attr("x", x(colCat) + x.bandwidth() / 2)
+        .attr("y", y(rowCat) + y.bandwidth() / 2 + 5)
+        .attr("fill", pctInkOver(pct))
+        .text(Math.round(pct * 100) + "%");
+    });
+  });
+}
+
+// ============================================================
+// QUIRKINESS
+// ============================================================
+function renderQuirk() {
+  clear("#quirk");
+  const svg = d3.select("#quirk");
+  const W = 1040, barH = 26;
+  const M = { top: 30, right: 100, bottom: 20, left: 130 };
+  const meanV = {}; cats.forEach(c => meanV[c] = d3.mean(data, p => p.ranks[c]));
+  const quirk = data.map(p => ({
+    name: p.name,
+    q: cats.reduce((s, c) => s + Math.pow(p.ranks[c] - meanV[c], 2), 0)
+  })).sort((a, b) => b.q - a.q);
+  const iH = quirk.length * barH;
+  svg.attr("viewBox", `0 0 ${W} ${iH + M.top + M.bottom}`);
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+  const iW = W - M.left - M.right;
+  const x = d3.scaleLinear().domain([0, d3.max(quirk, d => d.q)]).range([0, iW]);
+  const y = d3.scaleBand().domain(quirk.map(d => d.name)).range([0, iH]).padding(0.2);
+  const colorScale = d3.scaleSequential(cbMode ? d3.interpolateCividis : d3.interpolateRdYlGn)
+    .domain([d3.min(quirk, d => d.q), d3.max(quirk, d => d.q)]);
+  quirk.forEach((d, i) => {
+    g.append("text").attr("class", "axis text")
+      .attr("x", -10).attr("y", y(d.name) + y.bandwidth() / 2 + 5)
+      .attr("text-anchor", "end")
+      .text((i === 0 ? "🦄 " : i === quirk.length - 1 ? "🐑 " : "") + d.name);
+    g.append("rect").attr("x", 0).attr("y", y(d.name))
+      .attr("width", x(d.q)).attr("height", y.bandwidth())
+      .attr("rx", 4).attr("fill", colorScale(d.q));
+    g.append("text").attr("x", x(d.q) + 8).attr("y", y(d.name) + y.bandwidth() / 2 + 5)
+      .attr("class", "axis text").style("font-weight", "500").text(d.q.toFixed(1));
+  });
+}
+
+// ============================================================
+// TASTE MAP — force-directed MDS embedding
+// ============================================================
+// Color map: person → color of their #1 pick (or first if multiple)
+function topPick(p) {
+  return cats.reduce((best, c) => p.ranks[c] < p.ranks[best] ? c : best, cats[0]);
+}
+const catColorCB = { "Cake": "#E69F00", "Cookie": "#56B4E9", "Ice Cream": "#009E73",
+                    "Brownie": "#D55E00", "Pie": "#CC79A7" };
+const catColorVivid = { "Cake": "#e85d75", "Cookie": "#f0a500", "Ice Cream": "#9bd4d4",
+                        "Brownie": "#7c5b3f", "Pie": "#c8a8e9" };
+function catColor(c) { return cbMode ? catColorCB[c] : catColorVivid[c]; }
+
+function renderTasteMap() {
+  clear("#tastemap"); clear("#map-legend");
+  const svg = d3.select("#tastemap");
+  const W = 1040, H = 560;
+  const M = 40;
+  const g = svg.append("g");
+
+  const nodes = data.map(p => ({ name: p.name, top: topPick(p),
+                                 ranks: p.ranks, x: W / 2, y: H / 2 }));
+  const links = [];
+  for (let i = 0; i < nodes.length; i++)
+    for (let j = i + 1; j < nodes.length; j++)
+      links.push({ source: i, target: j,
+                   d: Math.sqrt(dist(nodes[i], nodes[j])) });
+
+  const maxD = d3.max(links, l => l.d) || 1;
+  const sim = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id((d, i) => i)
+      .distance(l => 60 + (l.d / maxD) * 260).strength(0.5))
+    .force("center", d3.forceCenter(W / 2, H / 2))
+    .force("charge", d3.forceManyBody().strength(-40))
+    .force("collide", d3.forceCollide(22))
+    .stop();
+  for (let i = 0; i < 350; i++) sim.tick();
+
+  // clamp inside viewport
+  nodes.forEach(n => {
+    n.x = Math.max(M, Math.min(W - M, n.x));
+    n.y = Math.max(M, Math.min(H - M, n.y));
+  });
+
+  g.selectAll("circle").data(nodes).enter().append("circle")
+    .attr("class", "map-node")
+    .attr("cx", d => d.x).attr("cy", d => d.y)
+    .attr("r", 14)
+    .attr("fill", d => catColor(d.top))
+    .on("mouseenter", (e, d) => { highlight(d.name);
+      d3.select("#picker").property("value", d.name); renderNeighbors(d.name); })
+    .on("mouseleave", () => highlight(null));
+
+  g.selectAll(".map-emoji").data(nodes).enter().append("text")
+    .attr("x", d => d.x).attr("y", d => d.y + 5)
+    .attr("text-anchor", "middle").style("font-size", "14px")
+    .style("pointer-events", "none")
+    .text(d => emoji[d.top]);
+
+  g.selectAll(".map-label").data(nodes).enter().append("text")
+    .attr("class", "map-label")
+    .attr("x", d => d.x).attr("y", d => d.y + 28)
+    .attr("text-anchor", "middle")
+    .text(d => d.name);
+
+  const ml = d3.select("#map-legend");
+  ml.append("span").style("color", "var(--muted)").text("#1 pick: ");
+  cats.forEach(c => {
+    const span = ml.append("span");
+    span.append("span").attr("class", "sw").style("background", catColor(c));
+    span.append("span").text(emoji[c] + " " + c);
+  });
+}
+
+// ============================================================
+// "IF YOU LOVE X, YOU ALSO REACH FOR..."
+// ============================================================
+function renderIfYouLove() {
+  clear("#ifgrid");
+  const div = d3.select("#ifgrid");
+  cats.forEach(c => {
+    let fans = data.filter(p => p.ranks[c] === 1);
+    let note = fans.length + " people put " + c + " #1";
+    if (fans.length === 0) {
+      fans = data.filter(p => p.ranks[c] === 2);
+      note = "no one picked it #1 — using " + fans.length + " who put it #2";
+    }
+    const others = cats.filter(o => o !== c);
+    const stats = others.map(o => ({
+      cat: o, avg: d3.mean(fans, p => p.ranks[o])
+    })).sort((a, b) => a.avg - b.avg);
+
+    const card = div.append("div").attr("class", "if-card");
+    const t = card.append("div").attr("class", "if-title");
+    t.append("span").text("If you love " + emoji[c] + " " + c + "...");
+    card.append("div").attr("class", "if-meta").text(note);
+    if (!fans.length) {
+      card.append("div").style("color", "var(--muted)").text("(no fans)");
+      return;
+    }
+    stats.forEach(s => {
+      const row = card.append("div").attr("class", "if-row");
+      row.append("div").attr("class", "if-cat").text(emoji[s.cat] + " " + s.cat);
+      const bg = row.append("div").attr("class", "if-bar-bg");
+      bg.append("div").attr("class", "if-bar")
+        .style("width", ((6 - s.avg) / 5 * 100) + "%")
+        .style("background", rankColor(s.avg));
+      row.append("div").attr("class", "if-val").text(s.avg.toFixed(2));
+    });
+  });
+}
+
+// ============================================================
+// HEAD-TO-HEAD
+// ============================================================
+function renderH2HPickers() {
+  const a = d3.select("#h2h-a"), b = d3.select("#h2h-b");
+  if (a.selectAll("option").size() > 0) return;
+  const sorted = data.slice().sort((x, y) => d3.ascending(x.name, y.name));
+  sorted.forEach(p => {
+    a.append("option").attr("value", p.name).text(p.name);
+    b.append("option").attr("value", p.name).text(p.name);
+  });
+  a.property("value", sorted[0].name);
+  b.property("value", sorted[1].name);
+  a.on("change", renderH2H);
+  b.on("change", renderH2H);
+}
+function renderH2H() {
+  clear("#h2h");
+  const aN = d3.select("#h2h-a").property("value");
+  const bN = d3.select("#h2h-b").property("value");
+  const A = data.find(p => p.name === aN);
+  const B = data.find(p => p.name === bN);
+  const div = d3.select("#h2h");
+  if (!A || !B || A === B) {
+    div.append("div").style("color", "var(--muted)").text("Pick two different people.");
+    return;
+  }
+  let aWins = 0, bWins = 0, ties = 0;
+  cats.forEach(c => {
+    const ra = A.ranks[c], rb = B.ranks[c];
+    if (ra < rb) aWins++; else if (rb < ra) bWins++; else ties++;
+    const row = div.append("div").attr("class", "h2h-row");
+    row.append("div").attr("class", "h2h-emoji").text(emoji[c]);
+    row.append("div").style("width", "70px").style("font-weight", "700").text(c);
+    row.append("div").attr("class", "h2h-rank").text(ra);
+    const bar = row.append("div").attr("class", "h2h-bar-wrap");
+    const aBar = bar.append("div").attr("class", "h2h-bar");
+    aBar.append("div").attr("class", "fill")
+      .style("width", ((6 - ra) / 5 * 100) + "%")
+      .style("background", styleFor(A.name).color);
+    const bBar = bar.append("div").attr("class", "h2h-bar");
+    bBar.append("div").attr("class", "fill")
+      .style("width", ((6 - rb) / 5 * 100) + "%")
+      .style("background", styleFor(B.name).color);
+    row.append("div").attr("class", "h2h-rank").text(rb);
+    row.append("div").attr("class", "h2h-trophy")
+      .text(ra < rb ? "🏆 " + A.name.slice(0, 6)
+          : rb < ra ? "🏆 " + B.name.slice(0, 6) : "🤝 tie");
+  });
+  const summary = div.append("div").style("margin-top", "14px")
+    .style("font-size", "15px").style("font-weight", "700");
+  summary.append("span").text(A.name + " " + aWins + "  ·  " + B.name + " " + bWins
+    + (ties ? "  ·  ties " + ties : ""));
+  if (aWins !== bWins) {
+    summary.append("span").attr("class", "winner-tag")
+      .text((aWins > bWins ? A.name : B.name) + " wins");
+  }
+  const distance = dist(A, B);
+  div.append("div").style("color", "var(--muted)")
+    .style("font-size", "13px").style("margin-top", "4px")
+    .text("Disagreement score: " + distance + "  (lower = more aligned tastes)");
+}
+
+// ============================================================
+// NEIGHBORS
+// ============================================================
+function renderNeighborsPicker() {
+  const sel = d3.select("#picker");
+  if (sel.selectAll("option").size() > 0) return;
+  data.slice().sort((a, b) => d3.ascending(a.name, b.name)).forEach(p => {
+    sel.append("option").attr("value", p.name).text(p.name);
+  });
+  sel.on("change", function() { renderNeighbors(this.value); });
+}
+function renderNeighbors(name) {
+  const div = d3.select("#neighbors");
+  div.selectAll("*").remove();
+  const me = data.find(p => p.name === name);
+  if (!me) return;
+  const others = data.filter(p => p.name !== name).map(p => ({
+    other: p.name, d: dist(me, p), preview: rankPreview(p)
+  }));
+  others.sort((a, b) => a.d - b.d);
+  const closest = others.slice(0, 5);
+  const farthest = others.slice(-5).reverse();
+  const meCard = div.append("div").attr("class", "twin-card")
+    .style("grid-column", "1 / -1");
+  meCard.append("p").attr("class", "twin-title")
+    .text("Selected — " + me.name + "'s rankings");
+  meCard.append("div").attr("class", "twin-pair").text(rankPreview(me));
+  function card(title, items, connector) {
+    const c = div.append("div").attr("class", "twin-card");
+    c.append("p").attr("class", "twin-title").text(title);
+    if (!items.length) { c.append("div").text("—"); return; }
+    const top = items[0];
+    c.append("div").attr("class", "twin-pair")
+      .text(top.other + "  " + connector + "  (score " + top.d + ")");
+    c.append("div").attr("class", "twin-score").text(top.preview);
+    const ul = c.append("ul").attr("class", "twin-list");
+    items.slice(1).forEach(p => {
+      ul.append("li").text("• " + p.other + "  (" + p.d + ")  — " + p.preview);
+    });
+  }
+  card("Closest to " + name, closest, "🤝");
+  card("Most different from " + name, farthest, "⚔");
+}
+
+// ============================================================
+// TWINS & ENEMIES
+// ============================================================
+function renderTwins() {
+  clear("#twins");
+  const tg = d3.select("#twins");
+  const pairs = [];
+  for (let i = 0; i < data.length; i++)
+    for (let j = i + 1; j < data.length; j++)
+      pairs.push({ a: data[i].name, b: data[j].name, d: dist(data[i], data[j]) });
+  pairs.sort((x, y) => x.d - y.d);
+  const twins = pairs.slice(0, 5);
+  const enemies = pairs.slice(-5).reverse();
+  function card(title, items, connector) {
+    const c = tg.append("div").attr("class", "twin-card");
+    c.append("p").attr("class", "twin-title").text(title);
+    const top = items[0];
+    c.append("div").attr("class", "twin-pair")
+      .text(top.a + "  " + connector + "  " + top.b);
+    c.append("div").attr("class", "twin-score").text("score " + top.d);
+    const ul = c.append("ul").attr("class", "twin-list");
+    items.slice(1).forEach(p => {
+      ul.append("li").text("• " + p.a + " " + connector + " " + p.b + "  (" + p.d + ")");
+    });
+  }
+  card("Closest tastes (lower = more alike)", twins, "🤝");
+  card("Most opposite tastes (higher = more different)", enemies, "⚔");
+}
+
+// ============================================================
+// MASTER RENDER + TOGGLES
+// ============================================================
+function renderAll() {
+  renderBump();
+  renderAvg();
+  renderSupers();
+  renderHeat();
+  renderStack();
+  renderPodium();
+  renderCtrl();
+  renderTourney();
+  renderQuirk();
+  renderTasteMap();
+  renderIfYouLove();
+  renderH2HPickers();
+  renderH2H();
+  renderNeighborsPicker();
+  renderNeighbors(d3.select("#picker").property("value") || data[0].name);
+  renderTwins();
+}
+
+document.getElementById("t-dark").addEventListener("change", e => {
+  darkMode = e.target.checked;
+  document.body.classList.toggle("dark", darkMode);
+});
+document.getElementById("t-cb").addEventListener("change", e => {
+  cbMode = e.target.checked;
+  renderAll();
+});
+
+renderAll();
+d3.select("#picker").property("value", data[0].name);
+renderNeighbors(data[0].name);
+</script>
+</body>
+</html>
