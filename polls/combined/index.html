@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Sweets × Superpowers</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #f8f7ff;
+    --card: #ffffff;
+    --ink: #1c1730;
+    --muted: #837a9a;
+    --grid: #ddd6f0;
+    --sweet: #d97706;
+    --sweet-soft: #fde68a;
+    --power: #6a3dd1;
+    --power-soft: #c5b4ec;
+    --shade: #ebe6f8;
+  }
+  body.dark {
+    --bg: #0f0d1a;
+    --card: #1c1930;
+    --ink: #ece6ff;
+    --muted: #9c93b8;
+    --grid: #2c2845;
+    --sweet: #f59e0b;
+    --sweet-soft: #78350f;
+    --power: #a48bff;
+    --power-soft: #4a3d7a;
+    --shade: #221f38;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    transition: background .25s, color .25s; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 24px 64px; }
+  h1 { font-weight: 800; font-size: 36px; letter-spacing: -0.02em; margin: 0 0 4px; }
+  h2 { font-weight: 800; font-size: 24px; letter-spacing: -0.01em; margin: 56px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .section-sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    padding: 10px 14px; margin-bottom: 24px;
+    background: var(--card); border: 1px solid var(--grid); border-radius: 12px;
+    position: sticky; top: 8px; z-index: 10; backdrop-filter: blur(6px); }
+  .toolbar .label { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none; font-size: 13px; font-weight: 600; }
+  .toggle input { appearance: none; width: 36px; height: 20px;
+    background: var(--grid); border-radius: 999px; position: relative;
+    outline: none; cursor: pointer; transition: background .15s; }
+  .toggle input:checked { background: var(--power); }
+  .toggle input::before { content: ""; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: #fff;
+    transition: transform .15s; }
+  .toggle input:checked::before { transform: translateX(16px); }
+
+  svg { width: 100%; height: auto; display: block; }
+  .axis text { fill: var(--ink); font-size: 13px; font-weight: 600; }
+  .rank-tick { fill: var(--muted); font-size: 11px; }
+
+  /* stat cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin-bottom: 8px; }
+  .stat-card { background: var(--card); border: 1px solid var(--grid);
+    border-radius: 14px; padding: 16px 18px; }
+  .stat-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--muted); }
+  .stat-line { font-size: 22px; font-weight: 800; margin: 6px 0 4px; }
+  .stat-detail { font-size: 12px; color: var(--muted); }
+
+  /* domain pill */
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; margin-right: 4px; }
+  .pill.sweet { background: var(--sweet-soft); color: var(--sweet); }
+  .pill.power { background: var(--power-soft); color: var(--power); }
+  body.dark .pill.sweet { color: #fde68a; }
+  body.dark .pill.power { color: #c5b4ec; }
+
+  /* dual profiles */
+  .profile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .profile-card { background: var(--card); border: 1px solid var(--grid);
+    border-radius: 12px; padding: 12px 14px; }
+  .profile-name { font-weight: 800; font-size: 15px; margin-bottom: 8px; }
+  .profile-row { display: flex; align-items: center; gap: 6px;
+    margin-bottom: 4px; flex-wrap: wrap; }
+  .profile-domain { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    width: 52px; flex-shrink: 0; font-weight: 700; }
+  .profile-domain.sweet { color: var(--sweet); }
+  .profile-domain.power { color: var(--power); }
+  .rank-item { display: inline-flex; align-items: center; gap: 2px; }
+  .rank-num { font-size: 9px; font-weight: 700; color: var(--muted); }
+
+  /* controversy */
+  .ctv-dot { r: 6; }
+  .ctv-label { font-size: 12px; font-weight: 600; fill: var(--ink); }
+  .ctv-val { font-size: 11px; fill: var(--muted); }
+
+  /* taste twins */
+  .twin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .twin-table th { text-align: left; padding: 8px 12px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+    border-bottom: 2px solid var(--grid); }
+  .twin-table td { padding: 8px 12px; border-bottom: 1px solid var(--grid); }
+  .twin-table tr:last-child td { border-bottom: none; }
+  .match-badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; }
+  .match-badge.same { background: var(--sweet-soft); color: var(--sweet); }
+  .match-badge.diff { background: var(--shade); color: var(--muted); }
+  body.dark .match-badge.same { color: #fde68a; }
+
+  /* heatmap */
+  .heat-rank { font-size: 12px; font-weight: 700; text-anchor: middle;
+    pointer-events: none; }
+  .heat-cell { stroke: var(--bg); stroke-width: 2; }
+
+  /* legend mini */
+  .legend-mini { display: flex; gap: 14px; margin: 8px 0 16px;
+    font-size: 12px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+  .legend-mini .sw { display: inline-block; width: 14px; height: 14px;
+    border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+
+  /* scatter */
+  .scatter-dot { stroke: var(--bg); stroke-width: 2; }
+  .scatter-label { font-size: 11px; font-weight: 600; fill: var(--ink);
+    pointer-events: none; }
+  .scatter-axis { font-size: 12px; fill: var(--muted); }
+  .ref-line { stroke: var(--grid); stroke-width: 1.5; stroke-dasharray: 4 3; }
+
+  /* cross-domain disagreement */
+  .agree-dot { stroke: var(--bg); stroke-width: 1.5; }
+  .agree-label { font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .corr-pickers { display: flex; gap: 20px; align-items: center;
+    flex-wrap: wrap; margin-bottom: 20px; }
+  .corr-pickers label { font-weight: 600; font-size: 14px; }
+  .corr-pickers .vs { font-size: 20px; color: var(--muted); }
+  .corr-stats-row { display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 20px; }
+  .corr-stat { background: var(--card); border: 1px solid var(--grid);
+    border-radius: 12px; padding: 14px 16px; }
+  .corr-stat-label { font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+  .corr-stat-value { font-size: 28px; font-weight: 800; }
+  .corr-stat-detail { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .sig { color: #16a34a; font-weight: 700; }
+  .not-sig { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sweets × Superpowers</h1>
+  <p class="sub">Cross-dataset analysis of the 13 people who ranked both. Are you the same kind of weirdo in every domain?</p>
+
+  <div class="toolbar">
+    <span class="label">View:</span>
+    <label class="toggle"><input id="t-dark" type="checkbox"> 🌙 Dark mode</label>
+    <label class="toggle"><input id="t-cb" type="checkbox" checked> 👁 Colorblind-safe palette</label>
+  </div>
+
+  <div class="stat-grid" id="stats"></div>
+
+  <h2>🔀 Per-person dual profile</h2>
+  <p class="section-sub">Each person's rankings in both domains — items listed in their ranked order (left = most wanted). Compare the two rows to see if someone's personality stays consistent.</p>
+  <div class="profile-grid" id="profiles"></div>
+
+  <h2>🦄 Quirkiness duel</h2>
+  <p class="section-sub">Each dot is a person. X = how far their sweet preferences are from the group average; Y = how far their power preferences are. Upper-right = rebel in both. Lower-left = conformist in both. Off-diagonal = domain-specific weirdo.</p>
+  <svg id="quirk-scatter" viewBox="0 0 1040 560" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>🍦↔🦅 Top-pick crossover</h2>
+  <p class="section-sub">Each cell shows how many people had that sweet as their #1 <em>and</em> that power as their #1. Are Ice Cream lovers also Flight enthusiasts?</p>
+  <svg id="crossover" viewBox="0 0 1040 480" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>⚡ Controversy across both worlds</h2>
+  <p class="section-sub">All 10 items ranked by how much the group disagreed (standard deviation). Are superpowers more divisive than sweets, or vice versa?</p>
+  <div class="legend-mini" id="ctv-legend"></div>
+  <svg id="controversy" viewBox="0 0 1040 400" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>🤝 Do your sweet and power soul mates match?</h2>
+  <p class="section-sub">For each person: who agrees with them most on sweets, and who agrees most on powers? A match means you have one consistent taste twin across both worlds.</p>
+  <div id="soulmates"></div>
+
+  <h2>🌐 Cross-domain agreement map</h2>
+  <p class="section-sub">Every pair of the 13 shared people plotted by how much they agree on sweets (X) vs how much they agree on powers (Y). Low scores = more agreement. Pairs in the upper-left agree on sweets but clash on powers; lower-right is the reverse.</p>
+  <svg id="agree-scatter" viewBox="0 0 1040 560" preserveAspectRatio="xMidYMid meet"></svg>
+
+  <h2>📈 Correlation explorer</h2>
+  <p class="section-sub">Pick any two item ranks — from either domain — and see how correlated they are across the 13 shared voters. Pearson r measures linear association; R² is the share of variance explained. With n=13 the bar for significance is high, so large r values matter most.</p>
+  <div class="corr-pickers">
+    <label>Variable A: <select id="corr-a"></select></label>
+    <span class="vs">↔</span>
+    <label>Variable B: <select id="corr-b"></select></label>
+  </div>
+  <div class="corr-stats-row" id="corr-stats"></div>
+  <svg id="corr-scatter" viewBox="0 0 1040 500" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<script>
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+const sweetCats = ["Cake", "Cookie", "Ice Cream", "Brownie", "Pie"];
+const superCats = ["Flight", "Telekenesis", "Invisibility", "Mind Reading", "Strength"];
+const sweetLabel = { "Cake":"Cake","Cookie":"Cookie","Ice Cream":"Ice Cream","Brownie":"Brownie","Pie":"Pie" };
+const superLabel = { "Flight":"Flight","Telekenesis":"Telekinesis","Invisibility":"Invisibility",
+                     "Mind Reading":"Mind Reading","Strength":"Strength" };
+const sweetEmoji = { "Cake":"🍰","Cookie":"🍪","Ice Cream":"🍦","Brownie":"🟫","Pie":"🥧" };
+const superEmoji = { "Flight":"🦅","Telekenesis":"🧠","Invisibility":"👻",
+                     "Mind Reading":"🔮","Strength":"💪" };
+
+let darkMode = false;
+let cbMode = true;
+
+// ============================================================
+// DATA — populated after CSV fetch
+// ============================================================
+let combined = [];
+
+// ============================================================
+// HELPERS
+// ============================================================
+function meanRanks(people, cats, rankKey) {
+  const mv = {};
+  cats.forEach(c => mv[c] = d3.mean(people, p => p[rankKey][c]));
+  return mv;
+}
+function quirk(person, cats, rankKey, meanV) {
+  return cats.reduce((s, c) => s + Math.pow(person[rankKey][c] - meanV[c], 2), 0);
+}
+function dist(a, b, cats, rankKey) {
+  return cats.reduce((s, c) => s + Math.pow(a[rankKey][c] - b[rankKey][c], 2), 0);
+}
+function clear(sel) { d3.select(sel).selectAll("*").remove(); }
+function topPick(person, cats, rankKey) {
+  return cats.reduce((best, c) => person[rankKey][c] < person[rankKey][best] ? c : best, cats[0]);
+}
+
+function computeQuirkiness() {
+  const sweetMean = meanRanks(combined, sweetCats, "sweet");
+  const superMean = meanRanks(combined, superCats, "super");
+  combined.forEach(p => {
+    p.sweetQ = quirk(p, sweetCats, "sweet", sweetMean);
+    p.superQ = quirk(p, superCats, "super", superMean);
+  });
+}
+
+const okabeIto = ["#E69F00","#56B4E9","#009E73","#F0E442",
+                  "#0072B2","#D55E00","#CC79A7","#000000",
+                  "#999999","#88CCEE","#CC6677","#117733","#332288"];
+const vivid = ["#e6194b","#3cb44b","#ffe119","#4363d8","#f58231","#911eb4",
+               "#46f0f0","#f032e6","#bcf60c","#fabebe","#008080","#e6beff","#9a6324"];
+function personColor(name) {
+  const i = combined.findIndex(p => p.name === name);
+  return cbMode ? okabeIto[i % okabeIto.length] : vivid[i % vivid.length];
+}
+
+// ============================================================
+// STAT CARDS
+// ============================================================
+function renderStats() {
+  clear("#stats");
+  const div = d3.select("#stats");
+
+  const sweetWinner = sweetCats.reduce((b, c) =>
+    d3.mean(combined, p => p.sweet[c]) < d3.mean(combined, p => p.sweet[b]) ? c : b, sweetCats[0]);
+  const superWinner = superCats.reduce((b, c) =>
+    d3.mean(combined, p => p.super[c]) < d3.mean(combined, p => p.super[b]) ? c : b, superCats[0]);
+
+  const mostSweetQ = d3.greatest(combined, p => p.sweetQ);
+  const mostSuperQ = d3.greatest(combined, p => p.superQ);
+  const leastSweetQ = d3.least(combined, p => p.sweetQ);
+  const leastSuperQ = d3.least(combined, p => p.superQ);
+
+  const facts = [
+    { tag: "Shared respondents",
+      line: combined.length + " in both · " + (sweetsAll.length - combined.length) + " sweets-only",
+      detail: superAll.length + " took the superpower poll, " + sweetsAll.length + " took sweets" },
+    { tag: "People's top picks",
+      line: sweetEmoji[sweetWinner] + " " + sweetWinner + "  ×  " + superEmoji[superWinner] + " " + superLabel[superWinner],
+      detail: "Most loved sweet and superpower among the 13 shared voters" },
+    { tag: "Biggest rebel in both",
+      line: mostSweetQ.name === mostSuperQ.name
+        ? "🦄 " + mostSweetQ.name
+        : mostSweetQ.name + " (sweet) · " + mostSuperQ.name + " (power)",
+      detail: mostSweetQ.name === mostSuperQ.name
+        ? "Consistently the furthest from any group average"
+        : "Different rebels for different domains" }
+  ];
+
+  facts.forEach(f => {
+    const card = div.append("div").attr("class", "stat-card");
+    card.append("div").attr("class", "stat-tag").text(f.tag);
+    card.append("div").attr("class", "stat-line").text(f.line);
+    card.append("div").attr("class", "stat-detail").text(f.detail);
+  });
+}
+
+// ============================================================
+// DUAL PROFILES
+// ============================================================
+function renderProfiles() {
+  clear("#profiles");
+  const grid = d3.select("#profiles");
+
+  combined.forEach(p => {
+    const card = grid.append("div").attr("class", "profile-card");
+    card.append("div").attr("class", "profile-name").text(p.name);
+
+    const sortedSweet = sweetCats.slice().sort((a, b) => p.sweet[a] - p.sweet[b]);
+    const sortedSuper = superCats.slice().sort((a, b) => p.super[a] - p.super[b]);
+
+    const sweetRow = card.append("div").attr("class", "profile-row");
+    sweetRow.append("div").attr("class", "profile-domain sweet").text("Sweets");
+    sortedSweet.forEach((c, i) => {
+      const item = sweetRow.append("div").attr("class", "rank-item");
+      item.append("span").style("font-size", "18px").text(sweetEmoji[c]);
+      item.append("span").attr("class", "rank-num").text(i + 1);
+    });
+
+    const superRow = card.append("div").attr("class", "profile-row");
+    superRow.append("div").attr("class", "profile-domain power").text("Powers");
+    sortedSuper.forEach((c, i) => {
+      const item = superRow.append("div").attr("class", "rank-item");
+      item.append("span").style("font-size", "18px").text(superEmoji[c]);
+      item.append("span").attr("class", "rank-num").text(i + 1);
+    });
+  });
+}
+
+// ============================================================
+// QUIRKINESS DUEL SCATTER
+// ============================================================
+function renderQuirkScatter() {
+  clear("#quirk-scatter");
+  const svg = d3.select("#quirk-scatter");
+  const W = 1040, H = 560;
+  const M = { top: 50, right: 40, bottom: 70, left: 80 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  const maxQ = Math.max(d3.max(combined, p => p.sweetQ), d3.max(combined, p => p.superQ));
+  const x = d3.scaleLinear().domain([0, maxQ * 1.1]).range([0, iW]);
+  const y = d3.scaleLinear().domain([0, maxQ * 1.1]).range([iH, 0]);
+
+  // diagonal reference line
+  g.append("line").attr("class", "ref-line")
+    .attr("x1", 0).attr("y1", iH).attr("x2", iW).attr("y2", 0);
+
+  // quadrant shading
+  const midQ = maxQ * 0.5;
+  g.append("rect").attr("x", 0).attr("y", 0)
+    .attr("width", x(midQ)).attr("height", y(midQ))
+    .attr("fill", "var(--power-soft)").attr("opacity", 0.18);
+  g.append("rect").attr("x", x(midQ)).attr("y", y(midQ))
+    .attr("width", iW - x(midQ)).attr("height", iH - y(midQ))
+    .attr("fill", "var(--sweet-soft)").attr("opacity", 0.18);
+
+  // quadrant labels
+  const ql = [
+    { x: 4, y: 14, a: "start", t: "◤ POWER REBEL, SWEET CONFORMIST" },
+    { x: iW - 4, y: 14, a: "end", t: "REBEL IN BOTH ◥" },
+    { x: 4, y: iH - 8, a: "start", t: "◣ CONFORMIST IN BOTH" },
+    { x: iW - 4, y: iH - 8, a: "end", t: "SWEET REBEL, POWER CONFORMIST ◢" }
+  ];
+  ql.forEach(l => {
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", l.x).attr("y", l.y).attr("text-anchor", l.a)
+      .style("font-size", "10px").style("text-transform", "uppercase")
+      .style("letter-spacing", "0.08em").text(l.t);
+  });
+
+  // grid lines
+  x.ticks(5).forEach(t => {
+    g.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", 0).attr("y2", iH)
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", x(t)).attr("y", iH + 16).attr("text-anchor", "middle").text(t.toFixed(0));
+  });
+  y.ticks(5).forEach(t => {
+    g.append("line").attr("x1", 0).attr("x2", iW).attr("y1", y(t)).attr("y2", y(t))
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", -8).attr("y", y(t) + 4).attr("text-anchor", "end").text(t.toFixed(0));
+  });
+
+  // axis labels
+  g.append("text").attr("class", "scatter-axis")
+    .attr("x", iW / 2).attr("y", iH + 46).attr("text-anchor", "middle")
+    .text("← sweet conformist          sweets quirkiness score          sweet rebel →");
+  g.append("text").attr("class", "scatter-axis")
+    .attr("transform", `translate(${-56},${iH / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .text("← power conformist          power quirkiness score          power rebel →");
+
+  // dots
+  combined.forEach(p => {
+    const cx = x(p.sweetQ), cy = y(p.superQ);
+    g.append("circle").attr("class", "scatter-dot")
+      .attr("cx", cx).attr("cy", cy).attr("r", 10)
+      .attr("fill", personColor(p.name)).attr("opacity", 0.85);
+    g.append("text").attr("class", "scatter-label")
+      .attr("x", cx).attr("y", cy + 24).attr("text-anchor", "middle")
+      .text(p.name);
+  });
+}
+
+// ============================================================
+// TOP-PICK CROSSOVER HEATMAP
+// ============================================================
+function renderCrossover() {
+  clear("#crossover");
+  const svg = d3.select("#crossover");
+  const W = 1040, H = 480;
+  const M = { top: 90, right: 20, bottom: 30, left: 160 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  const x = d3.scaleBand().domain(superCats).range([0, iW]).padding(0.08);
+  const y = d3.scaleBand().domain(sweetCats).range([0, iH]).padding(0.08);
+
+  // count matrix
+  const matrix = {};
+  sweetCats.forEach(sw => {
+    matrix[sw] = {};
+    superCats.forEach(sp => { matrix[sw][sp] = 0; });
+  });
+  combined.forEach(p => {
+    const sw = topPick(p, sweetCats, "sweet");
+    const sp = topPick(p, superCats, "super");
+    matrix[sw][sp]++;
+  });
+  const maxCount = d3.max(sweetCats.flatMap(sw => superCats.map(sp => matrix[sw][sp])));
+
+  // column headers (powers)
+  superCats.forEach(c => {
+    g.append("text").attr("class", "axis text")
+      .attr("x", x(c) + x.bandwidth() / 2).attr("y", -40)
+      .attr("text-anchor", "middle").style("font-size", "22px").text(superEmoji[c]);
+    g.append("text").attr("class", "axis text")
+      .attr("x", x(c) + x.bandwidth() / 2).attr("y", -18)
+      .attr("text-anchor", "middle").text(superLabel[c]);
+  });
+
+  // row headers (sweets)
+  sweetCats.forEach(c => {
+    g.append("text").attr("class", "axis text")
+      .attr("x", -10).attr("y", y(c) + y.bandwidth() / 2 + 4)
+      .attr("text-anchor", "end")
+      .text(sweetEmoji[c] + "  " + c);
+  });
+
+  // cells
+  sweetCats.forEach(sw => {
+    superCats.forEach(sp => {
+      const n = matrix[sw][sp];
+      const intensity = maxCount > 0 ? n / maxCount : 0;
+      const fill = n === 0 ? "var(--shade)"
+        : cbMode ? d3.interpolateCividis(0.2 + intensity * 0.8)
+        : d3.interpolatePurples(0.2 + intensity * 0.8);
+      g.append("rect").attr("class", "heat-cell")
+        .attr("x", x(sp)).attr("y", y(sw))
+        .attr("width", x.bandwidth()).attr("height", y.bandwidth())
+        .attr("rx", 6).attr("fill", fill);
+      if (n > 0) {
+        g.append("text").attr("class", "heat-rank")
+          .attr("x", x(sp) + x.bandwidth() / 2)
+          .attr("y", y(sw) + y.bandwidth() / 2 + 5)
+          .attr("fill", intensity > 0.6 ? "#fff" : "var(--ink)")
+          .text(n);
+      }
+    });
+  });
+
+  // column / row labels
+  g.append("text").attr("class", "rank-tick")
+    .attr("x", iW / 2).attr("y", -70).attr("text-anchor", "middle")
+    .style("font-size", "12px").style("text-transform", "uppercase")
+    .style("letter-spacing", "0.1em").style("fill", "var(--power)")
+    .text("▲ #1 superpower pick");
+  g.append("text").attr("class", "rank-tick")
+    .attr("text-anchor", "middle")
+    .style("font-size", "12px").style("text-transform", "uppercase")
+    .style("letter-spacing", "0.1em").style("fill", "var(--sweet)")
+    .attr("transform", `translate(${-130},${iH / 2}) rotate(-90)`)
+    .text("◀ #1 sweet pick");
+}
+
+// ============================================================
+// CONTROVERSY COMPARISON
+// ============================================================
+function renderControversy() {
+  clear("#controversy"); clear("#ctv-legend");
+  const svg = d3.select("#controversy");
+  const W = 1040, H = 400;
+  const M = { top: 20, right: 100, bottom: 40, left: 170 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  const items = [
+    ...sweetCats.map(c => ({
+      key: c, label: sweetEmoji[c] + "  " + c, domain: "sweet",
+      sd: d3.deviation(combined, p => p.sweet[c]) || 0
+    })),
+    ...superCats.map(c => ({
+      key: c, label: superEmoji[c] + "  " + superLabel[c], domain: "power",
+      sd: d3.deviation(combined, p => p.super[c]) || 0
+    }))
+  ].sort((a, b) => b.sd - a.sd);
+
+  const x = d3.scaleLinear().domain([0, d3.max(items, d => d.sd) * 1.1]).range([0, iW]);
+  const y = d3.scaleBand().domain(items.map(d => d.key)).range([0, iH]).padding(0.35);
+
+  x.ticks(5).forEach(t => {
+    g.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", 0).attr("y2", iH)
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", x(t)).attr("y", iH + 18).attr("text-anchor", "middle").text(t.toFixed(2));
+  });
+  g.append("text").attr("class", "rank-tick")
+    .attr("x", iW / 2).attr("y", iH + 36).attr("text-anchor", "middle")
+    .text("standard deviation  (higher = more divided)");
+
+  items.forEach(d => {
+    const color = d.domain === "sweet" ? "var(--sweet)" : "var(--power)";
+    const softColor = d.domain === "sweet" ? "var(--sweet-soft)" : "var(--power-soft)";
+    const cy = y(d.key) + y.bandwidth() / 2;
+
+    // bar track
+    g.append("rect").attr("x", 0).attr("y", y(d.key))
+      .attr("width", x(d.sd)).attr("height", y.bandwidth())
+      .attr("rx", 4).attr("fill", softColor).attr("opacity", 0.8);
+
+    // dot at end
+    g.append("circle").attr("cx", x(d.sd)).attr("cy", cy)
+      .attr("r", 6).attr("fill", color);
+
+    // label
+    g.append("text").attr("class", "ctv-label")
+      .attr("x", -10).attr("y", cy + 4).attr("text-anchor", "end")
+      .text(d.label);
+
+    // value
+    g.append("text").attr("class", "ctv-val")
+      .attr("x", x(d.sd) + 12).attr("y", cy + 4)
+      .text("σ = " + d.sd.toFixed(2));
+  });
+
+  const legend = d3.select("#ctv-legend");
+  [["sweet","var(--sweet)","Sweets"],["power","var(--power)","Superpowers"]].forEach(([, col, txt]) => {
+    const s = legend.append("span");
+    s.append("span").attr("class", "sw").style("background", col).style("border-radius", "50%");
+    s.append("span").text(txt);
+  });
+}
+
+// ============================================================
+// SOUL MATES TABLE
+// ============================================================
+function renderSoulmates() {
+  const root = d3.select("#soulmates");
+  root.selectAll("*").remove();
+
+  const table = root.append("table").attr("class", "twin-table");
+  const thead = table.append("thead").append("tr");
+  ["Person", "Sweet soul mate", "Power soul mate", ""].forEach(h =>
+    thead.append("th").text(h));
+
+  const tbody = table.append("tbody");
+  combined.forEach(p => {
+    const others = combined.filter(o => o.name !== p.name);
+    const sweetTwin = d3.least(others, o => dist(p, o, sweetCats, "sweet"));
+    const powerTwin = d3.least(others, o => dist(p, o, superCats, "super"));
+    const same = sweetTwin.name === powerTwin.name;
+    const tr = tbody.append("tr");
+    tr.append("td").style("font-weight", "700").text(p.name);
+    tr.append("td").html(
+      `<span class="pill sweet">${sweetEmoji[topPick(sweetTwin, sweetCats, "sweet")]}</span> ${sweetTwin.name}`
+    );
+    tr.append("td").html(
+      `<span class="pill power">${superEmoji[topPick(powerTwin, superCats, "super")]}</span> ${powerTwin.name}`
+    );
+    tr.append("td").html(
+      same
+        ? `<span class="match-badge same">✓ same person</span>`
+        : `<span class="match-badge diff">different</span>`
+    );
+  });
+}
+
+// ============================================================
+// CROSS-DOMAIN AGREEMENT SCATTER
+// ============================================================
+function renderAgreeScatter() {
+  clear("#agree-scatter");
+  const svg = d3.select("#agree-scatter");
+  const W = 1040, H = 560;
+  const M = { top: 50, right: 40, bottom: 70, left: 80 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  // all pairs
+  const pairs = [];
+  for (let i = 0; i < combined.length; i++)
+    for (let j = i + 1; j < combined.length; j++) {
+      const a = combined[i], b = combined[j];
+      pairs.push({
+        label: a.name + " & " + b.name,
+        sweetD: dist(a, b, sweetCats, "sweet"),
+        superD: dist(a, b, superCats, "super")
+      });
+    }
+
+  const maxD = Math.max(d3.max(pairs, p => p.sweetD), d3.max(pairs, p => p.superD));
+  const x = d3.scaleLinear().domain([0, maxD * 1.05]).range([0, iW]);
+  const y = d3.scaleLinear().domain([0, maxD * 1.05]).range([iH, 0]);
+
+  // diagonal ref
+  g.append("line").attr("class", "ref-line")
+    .attr("x1", 0).attr("y1", iH).attr("x2", x(maxD)).attr("y2", y(maxD));
+
+  // quadrant labels
+  g.append("text").attr("class", "rank-tick")
+    .attr("x", 4).attr("y", 14).attr("text-anchor", "start")
+    .style("font-size", "10px").style("text-transform","uppercase").style("letter-spacing","0.08em")
+    .text("◤ AGREE ON SWEETS, CLASH ON POWERS");
+  g.append("text").attr("class", "rank-tick")
+    .attr("x", iW - 4).attr("y", iH - 8).attr("text-anchor", "end")
+    .style("font-size", "10px").style("text-transform","uppercase").style("letter-spacing","0.08em")
+    .text("AGREE ON POWERS, CLASH ON SWEETS ◢");
+  g.append("text").attr("class", "rank-tick")
+    .attr("x", 4).attr("y", iH - 8).attr("text-anchor", "start")
+    .style("font-size", "10px").style("text-transform","uppercase").style("letter-spacing","0.08em")
+    .text("◣ AGREE ON BOTH");
+  g.append("text").attr("class", "rank-tick")
+    .attr("x", iW - 4).attr("y", 14).attr("text-anchor", "end")
+    .style("font-size", "10px").style("text-transform","uppercase").style("letter-spacing","0.08em")
+    .text("CLASH ON BOTH ◥");
+
+  // grid
+  x.ticks(6).forEach(t => {
+    g.append("line").attr("x1", x(t)).attr("x2", x(t)).attr("y1", 0).attr("y2", iH)
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", x(t)).attr("y", iH + 16).attr("text-anchor", "middle").text(t);
+  });
+  y.ticks(6).forEach(t => {
+    g.append("line").attr("x1", 0).attr("x2", iW).attr("y1", y(t)).attr("y2", y(t))
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", -8).attr("y", y(t) + 4).attr("text-anchor", "end").text(t);
+  });
+
+  g.append("text").attr("class", "scatter-axis")
+    .attr("x", iW / 2).attr("y", iH + 46).attr("text-anchor", "middle")
+    .text("← agree on sweets          sweets disagreement score          clash on sweets →");
+  g.append("text").attr("class", "scatter-axis")
+    .attr("transform", `translate(${-56},${iH / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .text("← agree on powers          power disagreement score          clash on powers →");
+
+  // dots
+  pairs.forEach(p => {
+    g.append("circle").attr("class", "agree-dot")
+      .attr("cx", x(p.sweetD)).attr("cy", y(p.superD))
+      .attr("r", 5).attr("fill", "var(--power)").attr("opacity", 0.55);
+  });
+
+  // label the most extreme points (far from diagonal)
+  const withGap = pairs.map(p => ({ ...p, gap: Math.abs(p.sweetD - p.superD) }))
+    .sort((a, b) => b.gap - a.gap);
+  withGap.slice(0, 5).forEach(p => {
+    g.append("text").attr("class", "agree-label")
+      .attr("x", x(p.sweetD) + 7).attr("y", y(p.superD) + 4)
+      .text(p.label);
+  });
+}
+
+// ============================================================
+// CORRELATION EXPLORER
+// ============================================================
+const corrVars = [
+  ...sweetCats.map(c => ({ label: sweetEmoji[c] + " " + c + " rank", domain: "sweet", cat: c })),
+  ...superCats.map(c => ({ label: superEmoji[c] + " " + superLabel[c] + " rank", domain: "super", cat: c }))
+];
+
+function getCorrVal(person, vi) {
+  const v = corrVars[vi];
+  return person[v.domain][v.cat];
+}
+
+function pearsonR(xs, ys) {
+  const mx = d3.mean(xs), my = d3.mean(ys);
+  const num = d3.sum(xs.map((x, i) => (x - mx) * (ys[i] - my)));
+  const den = Math.sqrt(d3.sum(xs.map(x => (x - mx) ** 2)) * d3.sum(ys.map(y => (y - my) ** 2)));
+  return den < 1e-10 ? 0 : num / den;
+}
+
+// regularized incomplete beta — used for t-distribution p-value
+function lgamma(x) {
+  const c = [76.18009172947146,-86.50532032941677,24.01409824083091,
+             -1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y = x, tmp = x + 5.5;
+  tmp -= (x + 0.5) * Math.log(tmp);
+  let ser = 1.000000000190015;
+  for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+  return -tmp + Math.log(2.5066282746310005 * ser / x);
+}
+function betacf(a, b, x) {
+  const MAXIT = 100, EPS = 3e-7;
+  const qab = a+b, qap = a+1, qam = a-1;
+  let c = 1, d = 1 - qab*x/qap;
+  if (Math.abs(d) < 1e-30) d = 1e-30;
+  d = 1/d; let h = d;
+  for (let m = 1; m <= MAXIT; m++) {
+    const m2 = 2*m;
+    let aa = m*(b-m)*x/((qam+m2)*(a+m2));
+    d = 1+aa*d; if (Math.abs(d)<1e-30) d=1e-30;
+    c = 1+aa/c; if (Math.abs(c)<1e-30) c=1e-30;
+    d = 1/d; h *= d*c;
+    aa = -(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d = 1+aa*d; if (Math.abs(d)<1e-30) d=1e-30;
+    c = 1+aa/c; if (Math.abs(c)<1e-30) c=1e-30;
+    d = 1/d; const del = d*c; h *= del;
+    if (Math.abs(del-1) < EPS) break;
+  }
+  return h;
+}
+function betai(a, b, x) {
+  if (x <= 0) return 0; if (x >= 1) return 1;
+  const front = Math.exp(Math.log(x)*a + Math.log(1-x)*b - lgamma(a) - lgamma(b) + lgamma(a+b));
+  return x < (a+1)/(a+b+2)
+    ? front * betacf(a, b, x) / a
+    : 1 - front * betacf(b, a, 1-x) / b;
+}
+function tPValue(t, df) {
+  return betai(df/2, 0.5, df/(df + t*t));
+}
+
+function buildCorrPickers() {
+  const selA = document.getElementById("corr-a");
+  const selB = document.getElementById("corr-b");
+  if (selA.options.length > 0) return;
+
+  [selA, selB].forEach(sel => {
+    const sg = document.createElement("optgroup");
+    sg.label = "🍬 Sweets";
+    sweetCats.forEach((c, i) => {
+      const o = document.createElement("option");
+      o.value = i;
+      o.text = sweetEmoji[c] + " " + c + " rank";
+      sg.appendChild(o);
+    });
+    sel.appendChild(sg);
+
+    const pg = document.createElement("optgroup");
+    pg.label = "🦸 Powers";
+    superCats.forEach((c, i) => {
+      const o = document.createElement("option");
+      o.value = sweetCats.length + i;
+      o.text = superEmoji[c] + " " + superLabel[c] + " rank";
+      pg.appendChild(o);
+    });
+    sel.appendChild(pg);
+  });
+
+  selA.value = sweetCats.indexOf("Brownie");
+  selB.value = sweetCats.length + superCats.indexOf("Strength");
+  selA.addEventListener("change", renderCorr);
+  selB.addEventListener("change", renderCorr);
+}
+
+function renderCorr() {
+  const viA = +document.getElementById("corr-a").value;
+  const viB = +document.getElementById("corr-b").value;
+  const vA = corrVars[viA], vB = corrVars[viB];
+  const xs = combined.map(p => getCorrVal(p, viA));
+  const ys = combined.map(p => getCorrVal(p, viB));
+  const r = pearsonR(xs, ys);
+  const r2 = r * r;
+  const n = combined.length, df = n - 2;
+  const tStat = Math.abs(r) < 0.9999 ? Math.abs(r) * Math.sqrt(df) / Math.sqrt(Math.max(1e-10, 1 - r*r)) : Infinity;
+  const p = isFinite(tStat) ? tPValue(tStat, df) : 0;
+  const sig = p < 0.05;
+  const dir = r > 0.05 ? "positive ↗" : r < -0.05 ? "negative ↘" : "flat —";
+
+  const statsDiv = d3.select("#corr-stats");
+  statsDiv.selectAll("*").remove();
+  [
+    { label: "Pearson r",          value: r.toFixed(3),   detail: dir },
+    { label: "R²",                 value: r2.toFixed(3),  detail: (r2*100).toFixed(1) + "% of variance explained" },
+    { label: "t-statistic",        value: isFinite(tStat) ? tStat.toFixed(2) : "∞", detail: "df = " + df },
+    { label: "p-value (2-tailed)", value: p < 0.001 ? "< 0.001" : p.toFixed(3),
+      detail: sig ? "✓ significant at α = 0.05" : "✗ not significant (α = 0.05)", sigClass: sig }
+  ].forEach(s => {
+    const card = statsDiv.append("div").attr("class", "corr-stat");
+    card.append("div").attr("class", "corr-stat-label").text(s.label);
+    card.append("div").attr("class", "corr-stat-value").text(s.value);
+    card.append("div").attr("class", "corr-stat-detail" + (s.sigClass !== undefined ? (s.sigClass ? " sig" : " not-sig") : ""))
+      .text(s.detail);
+  });
+
+  renderCorrScatter(viA, viB, xs, ys, vA, vB, r);
+}
+
+function renderCorrScatter(viA, viB, xs, ys, vA, vB, r) {
+  clear("#corr-scatter");
+  const svg = d3.select("#corr-scatter");
+  const W = 1040, H = 500;
+  const M = { top: 30, right: 40, bottom: 60, left: 90 };
+  const iW = W - M.left - M.right, iH = H - M.top - M.bottom;
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  const x = d3.scaleLinear().domain([0.5, 5.5]).range([0, iW]);
+  const y = d3.scaleLinear().domain([0.5, 5.5]).range([iH, 0]);
+
+  for (let v = 1; v <= 5; v++) {
+    g.append("line").attr("x1", x(v)).attr("x2", x(v)).attr("y1", 0).attr("y2", iH)
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("line").attr("x1", 0).attr("x2", iW).attr("y1", y(v)).attr("y2", y(v))
+      .attr("stroke", "var(--grid)").attr("stroke-dasharray", "2 4");
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", x(v)).attr("y", iH + 16).attr("text-anchor", "middle").text(v);
+    g.append("text").attr("class", "rank-tick")
+      .attr("x", -8).attr("y", y(v) + 4).attr("text-anchor", "end").text(v);
+  }
+
+  g.append("text").attr("class", "scatter-axis")
+    .attr("x", iW/2).attr("y", iH + 46).attr("text-anchor", "middle")
+    .text(vA.label + " →");
+  g.append("text").attr("class", "scatter-axis")
+    .attr("transform", `translate(${-64},${iH/2}) rotate(-90)`)
+    .attr("text-anchor", "middle").text(vB.label + " →");
+
+  // regression line
+  const mx = d3.mean(xs), my = d3.mean(ys);
+  const denom = d3.sum(xs.map(xi => (xi - mx) ** 2));
+  if (denom > 1e-10) {
+    const slope = d3.sum(xs.map((xi, i) => (xi - mx) * (ys[i] - my))) / denom;
+    const intercept = my - slope * mx;
+    g.append("line")
+      .attr("x1", x(1)).attr("y1", y(slope * 1 + intercept))
+      .attr("x2", x(5)).attr("y2", y(slope * 5 + intercept))
+      .attr("stroke", r >= 0 ? "var(--power)" : "var(--sweet)")
+      .attr("stroke-width", 2).attr("stroke-dasharray", "6 3").attr("opacity", 0.7);
+  }
+
+  // deterministic per-person jitter so dots don't pile up on integer grid
+  function nameHash(s, seed) {
+    let h = seed;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0x7fffffff;
+    return ((h % 1000) / 1000 - 0.5) * 0.28;
+  }
+  combined.forEach(p => {
+    const xi = getCorrVal(p, viA), yi = getCorrVal(p, viB);
+    const cx = x(xi + nameHash(p.name, 1));
+    const cy = y(yi + nameHash(p.name, 7));
+    g.append("circle").attr("cx", cx).attr("cy", cy).attr("r", 9)
+      .attr("fill", personColor(p.name))
+      .attr("stroke", "var(--bg)").attr("stroke-width", 2).attr("opacity", 0.9);
+    g.append("text").attr("class", "scatter-label")
+      .attr("x", cx).attr("y", cy + 22).attr("text-anchor", "middle").text(p.name);
+  });
+}
+
+// ============================================================
+// MASTER RENDER
+// ============================================================
+function renderAll() {
+  renderStats();
+  renderProfiles();
+  renderQuirkScatter();
+  renderCrossover();
+  renderControversy();
+  renderSoulmates();
+  renderAgreeScatter();
+  buildCorrPickers();
+  renderCorr();
+}
+
+document.getElementById("t-dark").addEventListener("change", e => {
+  darkMode = e.target.checked;
+  document.body.classList.toggle("dark", darkMode);
+  renderAll();
+});
+document.getElementById("t-cb").addEventListener("change", e => {
+  cbMode = e.target.checked;
+  renderAll();
+});
+
+function parseRanks(rows, cats) {
+  return rows.map(row => ({
+    name: row.Name,
+    ranks: Object.fromEntries(cats.map(c => [c, +row[c]]))
+  }));
+}
+
+Promise.all([
+  d3.csv("../sweets/sweets.csv"),
+  d3.csv("../super/super.csv")
+]).then(([sweetsRaw, superRaw]) => {
+  const sweetsAll = parseRanks(sweetsRaw, sweetCats);
+  const superAll  = parseRanks(superRaw,  superCats);
+  const sharedNames = new Set(superAll.map(p => p.name));
+  const sweetsShared = sweetsAll.filter(p => sharedNames.has(p.name));
+  combined = superAll.map(sp => ({
+    name: sp.name,
+    sweet: sweetsShared.find(sw => sw.name === sp.name).ranks,
+    super: sp.ranks
+  }));
+  computeQuirkiness();
+  renderAll();
+}).catch(err => {
+  d3.select(".wrap").insert("div", ":first-child")
+    .style("padding", "12px 16px").style("border-radius", "8px")
+    .style("background", "#fee").style("color", "#900").style("margin-bottom", "12px")
+    .text("Couldn't load CSVs — serve over http(s), not file://. Error: " + err.message);
+});
+</script>
+</body>
+</html>
