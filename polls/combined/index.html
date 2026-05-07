@@ -215,6 +215,8 @@ let cbMode = true;
 // DATA — populated after CSV fetch
 // ============================================================
 let combined = [];
+let sweetsAll = [];
+let superAll = [];
 
 // ============================================================
 // HELPERS
@@ -898,8 +900,8 @@ Promise.all([
   d3.csv("../sweets/sweets.csv"),
   d3.csv("../super/super.csv")
 ]).then(([sweetsRaw, superRaw]) => {
-  const sweetsAll = parseRanks(sweetsRaw, sweetCats);
-  const superAll  = parseRanks(superRaw,  superCats);
+  sweetsAll = parseRanks(sweetsRaw, sweetCats);
+  superAll  = parseRanks(superRaw,  superCats);
   const sharedNames = new Set(superAll.map(p => p.name));
   const sweetsShared = sweetsAll.filter(p => sharedNames.has(p.name));
   combined = superAll.map(sp => ({
