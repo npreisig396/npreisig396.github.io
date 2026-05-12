@@ -338,6 +338,35 @@ function rankPreview(person) {
 }
 function clear(sel) { d3.select(sel).selectAll("*").remove(); }
 
+// ---------- TIE-FAIR HELPERS ----------
+// All items tied with the min/max of scoreFn.
+function tied(items, scoreFn, mode) {
+  if (!items.length) return [];
+  const target = mode === "max"
+    ? d3.max(items, scoreFn) : d3.min(items, scoreFn);
+  return items.filter(d => scoreFn(d) === target);
+}
+// Slice top-N but extend through any items tied with the Nth at scoreFn.
+function topWithTies(sorted, n, scoreFn) {
+  if (sorted.length <= n) return sorted.slice();
+  const cutoff = scoreFn(sorted[n - 1]);
+  let i = n;
+  while (i < sorted.length && scoreFn(sorted[i]) === cutoff) i++;
+  return sorted.slice(0, i);
+}
+// Stable alphabetical tiebreaker for category-like and person-like items.
+function alphaTie(a, b) {
+  const an = a.name || a.cat || (a.a + "|" + a.b) || "";
+  const bn = b.name || b.cat || (b.a + "|" + b.b) || "";
+  return d3.ascending(an, bn);
+}
+function joinPowers(items) {
+  return items.map(s => emoji[s.cat] + " " + label[s.cat]).join(" & ");
+}
+function joinNames(items) {
+  return items.map(s => s.name).join(" & ");
+}
+
 let jitterMap = new Map();
 function buildJitter() {
   jitterMap = new Map();
@@ -491,42 +520,55 @@ function renderSupers() {
     firsts: data.filter(p => p.ranks[c] === 1),
     lasts: data.filter(p => p.ranks[c] === 5)
   }));
-  const bestAvg = d3.least(stats, s => s.avg);
-  const worstAvg = d3.greatest(stats, s => s.avg);
-  const mostDivisive = d3.greatest(stats, s => s.sd);
-  const mostAgreed = d3.least(stats, s => s.sd);
-  const mostFirsts = d3.greatest(stats, s => s.firsts.length);
-  const mostLasts = d3.greatest(stats, s => s.lasts.length);
+  const bestAvg     = tied(stats, s => s.avg, "min");
+  const worstAvg    = tied(stats, s => s.avg, "max");
+  const mostDivisive = tied(stats, s => s.sd, "max");
+  const mostAgreed   = tied(stats, s => s.sd, "min");
+  const mostFirsts   = tied(stats, s => s.firsts.length, "max");
+  const mostLasts    = tied(stats, s => s.lasts.length,  "max");
+  [bestAvg, worstAvg, mostDivisive, mostAgreed, mostFirsts, mostLasts]
+    .forEach(arr => arr.sort(alphaTie));
 
   const meanV = {}; cats.forEach(c => meanV[c] = d3.mean(data, p => p.ranks[c]));
   const quirky = data.map(p => ({
     name: p.name,
     q: cats.reduce((s, c) => s + Math.pow(p.ranks[c] - meanV[c], 2), 0)
   }));
-  const unicorn = d3.greatest(quirky, p => p.q);
-  const sheep = d3.least(quirky, p => p.q);
+  const unicorns = tied(quirky, p => p.q, "max").sort(alphaTie);
+  const sheep    = tied(quirky, p => p.q, "min").sort(alphaTie);
+  const tieNote = arr => arr.length > 1 ? " (tied — " + arr.length + ")" : "";
+
+  const firstsAll = []; mostFirsts.forEach(s => s.firsts.forEach(p => firstsAll.push(p.name)));
+  const firstsUnique = Array.from(new Set(firstsAll)).sort(d3.ascending);
+  const lastsCount = mostLasts[0].lasts.length;
 
   const facts = [
-    { tag: "GROUP FAVORITE", line: emoji[bestAvg.cat] + " " + label[bestAvg.cat],
-      detail: "Lowest avg rank: " + bestAvg.avg.toFixed(2) },
-    { tag: "MOST AVOIDED", line: emoji[worstAvg.cat] + " " + label[worstAvg.cat],
-      detail: "Highest avg rank: " + worstAvg.avg.toFixed(2) },
-    { tag: "MOST 1ST-PLACE VOTES",
-      line: emoji[mostFirsts.cat] + " " + label[mostFirsts.cat],
-      detail: mostFirsts.firsts.length + " people put it #1: " +
-              mostFirsts.firsts.map(p => p.name).join(", ") },
-    { tag: "MOST LAST-PLACE VOTES",
-      line: emoji[mostLasts.cat] + " " + label[mostLasts.cat],
-      detail: mostLasts.lasts.length + " people put it #5" },
-    { tag: "MOST DIVISIVE",
-      line: emoji[mostDivisive.cat] + " " + label[mostDivisive.cat],
-      detail: "σ = " + mostDivisive.sd.toFixed(2) + " — strong opinions both ways" },
-    { tag: "MOST AGREED-UPON",
-      line: emoji[mostAgreed.cat] + " " + label[mostAgreed.cat],
-      detail: "σ = " + mostAgreed.sd.toFixed(2) + " — group lines up" },
-    { tag: "QUIRKIEST PERSON 🦄", line: unicorn.name,
+    { tag: "GROUP FAVORITE" + tieNote(bestAvg),
+      line: joinPowers(bestAvg),
+      detail: "Lowest avg rank: " + bestAvg[0].avg.toFixed(2) },
+    { tag: "MOST AVOIDED" + tieNote(worstAvg),
+      line: joinPowers(worstAvg),
+      detail: "Highest avg rank: " + worstAvg[0].avg.toFixed(2) },
+    { tag: "MOST 1ST-PLACE VOTES" + tieNote(mostFirsts),
+      line: joinPowers(mostFirsts),
+      detail: mostFirsts[0].firsts.length + " people put "
+              + (mostFirsts.length > 1 ? "each" : "it") + " #1"
+              + (firstsUnique.length ? ": " + firstsUnique.join(", ") : "") },
+    { tag: "MOST LAST-PLACE VOTES" + tieNote(mostLasts),
+      line: joinPowers(mostLasts),
+      detail: lastsCount + " people put "
+              + (mostLasts.length > 1 ? "each" : "it") + " #5" },
+    { tag: "MOST DIVISIVE" + tieNote(mostDivisive),
+      line: joinPowers(mostDivisive),
+      detail: "σ = " + mostDivisive[0].sd.toFixed(2) + " — strong opinions both ways" },
+    { tag: "MOST AGREED-UPON" + tieNote(mostAgreed),
+      line: joinPowers(mostAgreed),
+      detail: "σ = " + mostAgreed[0].sd.toFixed(2) + " — group lines up" },
+    { tag: "QUIRKIEST" + tieNote(unicorns) + " 🦄",
+      line: joinNames(unicorns),
       detail: "Furthest from the group average" },
-    { tag: "MOST CONFORMING 🐑", line: sheep.name,
+    { tag: "MOST CONFORMING" + tieNote(sheep) + " 🐑",
+      line: joinNames(sheep),
       detail: "Closest to the group average" },
     { tag: "TOTAL VOTERS", line: data.length + " people",
       detail: cats.length + " powers ranked 1–5" }
@@ -554,9 +596,12 @@ function greedyOrder(people) {
   const order = [remaining.shift()];
   while (remaining.length) {
     const last = order[order.length - 1];
-    let bestI = 0, bestD = Infinity;
+    let bestI = 0, bestD = Infinity, bestName = null;
     remaining.forEach((p, i) => {
-      const d = dist(last, p); if (d < bestD) { bestD = d; bestI = i; }
+      const d = dist(last, p);
+      if (d < bestD || (d === bestD && d3.ascending(p.name, bestName) < 0)) {
+        bestD = d; bestI = i; bestName = p.name;
+      }
     });
     order.push(remaining.splice(bestI, 1)[0]);
   }
@@ -668,7 +713,7 @@ function renderTierList() {
   const stats = cats.map(c => ({
     cat: c, avg: d3.mean(data, p => p.ranks[c]),
     firsts: data.filter(p => p.ranks[c] === 1).length
-  })).sort((a, b) => a.avg - b.avg);
+  })).sort((a, b) => (a.avg - b.avg) || d3.ascending(label[a.cat], label[b.cat]));
   const buckets = { S: [], A: [], B: [], C: [], D: [] };
   stats.forEach(s => buckets[tierOf(s.avg)].push(s));
   ["S", "A", "B", "C", "D"].forEach(t => {
@@ -696,7 +741,7 @@ function renderCtrl() {
   clear("#controversy");
   const div = d3.select("#controversy");
   const ctrl = cats.map(c => ({ cat: c, sd: d3.deviation(data, p => p.ranks[c]) }))
-    .sort((a, b) => b.sd - a.sd);
+    .sort((a, b) => (b.sd - a.sd) || d3.ascending(label[a.cat], label[b.cat]));
   const max = d3.max(ctrl, d => d.sd);
   ctrl.forEach(d => {
     const row = div.append("div").attr("class", "ctrl-row");
@@ -801,20 +846,24 @@ function renderQuirk() {
   const quirk = data.map(p => ({
     name: p.name,
     q: cats.reduce((s, c) => s + Math.pow(p.ranks[c] - meanV[c], 2), 0)
-  })).sort((a, b) => b.q - a.q);
+  })).sort((a, b) => (b.q - a.q) || d3.ascending(a.name, b.name));
+  const maxQ = d3.max(quirk, d => d.q);
+  const minQ = d3.min(quirk, d => d.q);
   const iH = quirk.length * barH;
   svg.attr("viewBox", `0 0 ${W} ${iH + M.top + M.bottom}`);
   const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
   const iW = W - M.left - M.right;
-  const x = d3.scaleLinear().domain([0, d3.max(quirk, d => d.q) || 1]).range([0, iW]);
+  const x = d3.scaleLinear().domain([0, maxQ || 1]).range([0, iW]);
   const y = d3.scaleBand().domain(quirk.map(d => d.name)).range([0, iH]).padding(0.2);
   const colorScale = d3.scaleSequential(cbMode ? d3.interpolateCividis : d3.interpolateRdYlGn)
-    .domain([d3.min(quirk, d => d.q), d3.max(quirk, d => d.q)]);
+    .domain([minQ, maxQ]);
   quirk.forEach((d, i) => {
+    const badge = (d.q === maxQ && maxQ !== minQ) ? "🦄 "
+                : (d.q === minQ && maxQ !== minQ) ? "🐑 " : "";
     g.append("text").attr("class", "axis text")
       .attr("x", -10).attr("y", y(d.name) + y.bandwidth() / 2 + 5)
       .attr("text-anchor", "end")
-      .text((i === 0 ? "🦄 " : i === quirk.length - 1 ? "🐑 " : "") + d.name);
+      .text(badge + d.name);
     g.append("rect").attr("x", 0).attr("y", y(d.name))
       .attr("width", x(d.q)).attr("height", y.bandwidth())
       .attr("rx", 4).attr("fill", colorScale(d.q));
@@ -1032,7 +1081,11 @@ function renderArchetypes() {
     if (!groups.has(key)) groups.set(key, { top1: sorted[0], top2: sorted[1], members: [] });
     groups.get(key).members.push(p.name);
   });
-  const sorted = Array.from(groups.values()).sort((a, b) => b.members.length - a.members.length);
+  const sorted = Array.from(groups.values())
+    .map(g => ({ ...g, members: g.members.slice().sort(d3.ascending) }))
+    .sort((a, b) => (b.members.length - a.members.length)
+                 || d3.ascending(label[a.top1], label[b.top1])
+                 || d3.ascending(label[a.top2], label[b.top2]));
   sorted.forEach(g => {
     const card = root.append("div").attr("class", "arch-card");
     card.append("div").attr("class", "arch-emojis")
@@ -1067,9 +1120,11 @@ function renderNeighbors(name) {
   const others = data.filter(p => p.name !== name).map(p => ({
     other: p.name, d: dist(me, p), preview: rankPreview(p)
   }));
-  others.sort((a, b) => a.d - b.d);
-  const closest = others.slice(0, 5);
-  const farthest = others.slice(-5).reverse();
+  others.sort((a, b) => (a.d - b.d) || d3.ascending(a.other, b.other));
+  const closest = topWithTies(others, 5, p => p.d);
+  const reversed = others.slice().sort((a, b) =>
+    (b.d - a.d) || d3.ascending(a.other, b.other));
+  const farthest = topWithTies(reversed, 5, p => p.d);
   const meCard = div.append("div").attr("class", "twin-card")
     .style("grid-column", "1 / -1");
   meCard.append("p").attr("class", "twin-title")
@@ -1100,11 +1155,17 @@ function renderTwins() {
   const tg = d3.select("#twins");
   const pairs = [];
   for (let i = 0; i < data.length; i++)
-    for (let j = i + 1; j < data.length; j++)
-      pairs.push({ a: data[i].name, b: data[j].name, d: dist(data[i], data[j]) });
-  pairs.sort((x, y) => x.d - y.d);
-  const twins = pairs.slice(0, 5);
-  const enemies = pairs.slice(-5).reverse();
+    for (let j = i + 1; j < data.length; j++) {
+      const lo = d3.ascending(data[i].name, data[j].name) < 0
+        ? [data[i].name, data[j].name] : [data[j].name, data[i].name];
+      pairs.push({ a: lo[0], b: lo[1], d: dist(data[i], data[j]) });
+    }
+  pairs.sort((x, y) => (x.d - y.d)
+                    || d3.ascending(x.a, y.a) || d3.ascending(x.b, y.b));
+  const twins   = topWithTies(pairs, 5, p => p.d);
+  const reversed = pairs.slice().sort((x, y) => (y.d - x.d)
+                    || d3.ascending(x.a, y.a) || d3.ascending(x.b, y.b));
+  const enemies = topWithTies(reversed, 5, p => p.d);
   function card(title, items, connector) {
     const c = tg.append("div").attr("class", "twin-card");
     c.append("p").attr("class", "twin-title").text(title);
